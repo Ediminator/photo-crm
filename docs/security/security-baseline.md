@@ -22,7 +22,10 @@ This document establishes the mandatory security standards and controls for the 
 - **Object-Level Scoping:** Bare IDs from client requests are never trusted. All database reads and writes must include ownership criteria:
   ```typescript
   // Example pattern in repository layer:
-  await db.select().from(clients).where(and(eq(clients.id, clientId), eq(clients.studioId, studioId)));
+  await db
+    .select()
+    .from(clients)
+    .where(and(eq(clients.id, clientId), eq(clients.studioId, studioId)));
   ```
 - **Insecure Direct Object Reference (IDOR) Testing:** Every resource must have automated negative integration tests verifying that unauthorized actors receive 404/denial.
 

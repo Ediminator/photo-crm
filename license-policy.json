@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "name": "photo-crm-license-policy",
+  "allowedLicenses": [
+    "0BSD",
+    "AGPL-3.0",
+    "AGPL-3.0-only",
+    "AGPL-3.0-or-later",
+    "Apache-2.0",
+    "Artistic-2.0",
+    "BlueOak-1.0.0",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "CC0-1.0",
+    "GPL-3.0",
+    "GPL-3.0-only",
+    "GPL-3.0-or-later",
+    "ISC",
+    "LGPL-3.0",
+    "LGPL-3.0-only",
+    "LGPL-3.0-or-later",
+    "MIT",
+    "MIT-0",
+    "MPL-2.0",
+    "Python-2.0",
+    "Unlicense",
+    "WTFPL"
+  ],
+  "exceptions": {
+    "caniuse-lite": {
+      "license": "CC-BY-4.0",
+      "reason": "Browser support database used by Next.js/Browserslist, distributed under CC-BY-4.0 data licence"
+    },
+    "spdx-exceptions": {
+      "license": "CC-BY-3.0",
+      "reason": "SPDX standard licence exceptions list published by the Linux Foundation"
+    }
+  }
+}

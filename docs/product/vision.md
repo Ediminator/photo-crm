@@ -16,11 +16,11 @@ Photographers and videographers run their businesses across scattered tools: ema
 
 ## Primary users
 
-| Persona | Needs |
-| --- | --- |
+| Persona                                                                              | Needs                                                                                                                                  |
+| ------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------- |
 | **Solo photographer or videographer** (wedding, portrait, family, event, commercial) | Capture enquiries, book shoots, send proposals and contracts, collect questionnaire answers, deliver galleries, without admin overhead |
-| **Their clients** (couples, families, businesses) | A simple, trustworthy portal: review and sign, answer questionnaires, view and download photos, in their language and on any device |
-| **Self-hoster or operator** (often the photographer, or a tech-savvy helper) | One-command install, safe defaults, backups, updates |
+| **Their clients** (couples, families, businesses)                                    | A simple, trustworthy portal: review and sign, answer questionnaires, view and download photos, in their language and on any device    |
+| **Self-hoster or operator** (often the photographer, or a tech-savvy helper)         | One-command install, safe defaults, backups, updates                                                                                   |
 
 ## Principles (tie-breakers for product decisions)
 
