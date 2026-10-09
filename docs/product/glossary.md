@@ -23,3 +23,8 @@ Use these terms consistently in code, UI strings and docs. The UX reviewer check
 | Consent | Consent | Einwilligung | `consent` | Recorded permission (marketing, image usage) |
 | Retention | Retention | Aufbewahrung | `retention` | How long data is kept before deletion or anonymisation |
 | Data export (DSAR) | Data export | Datenauskunft / Datenexport | `dataExport` | Export of all data about a person |
+| CLI | CLI / Terminal client | Befehlszeile / Terminal-Client | `cli` | Headless command-line tool (`pcrm`) |
+| MCP Server | MCP Server | MCP-Server | `mcp` | Model Context Protocol service for AI agents |
+| Accounting connector | Accounting connector | Buchhaltungs-Schnittstelle | `accountingProvider` | Provider interface for external accounting platforms |
+| Invoice | Invoice | Rechnung | `invoice` | Legally sealed accounting voucher created via connector |
+| Down payment | Down payment | Anzahlung | `downPayment` | Upfront deposit invoice (*Anzahlungsrechnung*) |

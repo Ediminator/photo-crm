@@ -57,10 +57,25 @@ Selected by the maintainer on 2026-10-09. Each epic is decomposed into task cont
 - Video: upload and streaming playback (HLS or progressive, decided by ADR), poster frames.
 - Storage: S3-compatible (self-hosted or provider), private by default.
 
+## E11: Agentic interface (CLI & Model Context Protocol)
+- Headless TypeScript CLI (`pcrm`) supporting text tables, shell piping, and machine-readable `--json` output.
+- Model Context Protocol (MCP) server (`@photo-crm/mcp`) exposing CRM domain tools and resources to AI agent assistants (Antigravity, Claude, Cursor).
+- Supported transports: stdio (local desktop/workstation agents) and HTTP/SSE (remote container/agent workflows).
+- Security: Scoped API tokens (`pcrm_live_...`), token rate limiting, PII redaction by default in tool responses, and immutable audit logging with agent attribution (`actor_type: 'agent'`, token ID, tool name).
+
+## E12: External accounting & tax platform connector (Lexware Office)
+- Modular `AccountingProvider` interface for seamless connection to external accounting and tax systems.
+- Lexware Office integration as the primary GoBD, §14 UStG, and mandatory B2B e-invoicing (EN 16931 / ZUGFeRD / XRechnung) compliance path for Phase 1.
+- Two-way contact synchronization (CRM Clients ↔ Lexware Contacts).
+- Automatic invoice and down-payment invoice (*Anzahlungsrechnung*) generation upon proposal acceptance, contract signing, or shoot milestones.
+- Sealed PDF/A-3 and ZUGFeRD invoice retrieval, made available to clients read-only in the Client Portal (E9).
+- Webhook subscriptions (`invoice.status.changed`, `payment.changed`) for automatic payment status reconciliation in CRM project timelines.
+- Security: AES-256-GCM encrypted API key storage at rest, webhook signature verification, and strict data minimization.
+
 ## Cross-cutting (applies to every epic)
 - English and German UI; WCAG 2.2 AA; mobile-first.
 - Audit log of security-relevant and privacy-relevant actions.
 - Retention policies per data type; export and erasure coverage; no third-party calls by default.
 
 ## Explicitly out of scope for v1.0
-Invoices, payment plans, deposits and Stripe (post-MVP, with GoBD, §14 UStG and e-invoicing), expenses and mileage, reporting dashboards beyond basic counts, team members and roles, multi-tenant SaaS, native apps.
+Native in-house GoBD certification engine and direct bank-account feeds (provided externally via the Lexware Office connector in Phase 1; full native in-house engine is post-MVP), payment plans, Stripe credit card processing, expenses and mileage, reporting dashboards beyond basic counts, team members and roles, multi-tenant SaaS, native apps.

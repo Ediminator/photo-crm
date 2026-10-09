@@ -11,7 +11,9 @@ This register documents all personal data processed by the application, its lawf
 | `owner.name`, `owner.email` | Account identification & administration | Art. 6(1)(b) Contract / System Operation | Account lifetime | Deleted on instance reset / factory purge; included in Owner Export |
 | `owner.password_hash` | Authentication security | Art. 6(1)(f) Legitimate Interest / Art. 32 | Account lifetime | Overwritten on reset |
 | `owner.mfa_secret` | Two-factor authentication (encrypted at rest) | Art. 32 Security of processing | Account lifetime / until MFA disabled | Purged on disable |
+| `owner.api_keys.*` | Programmatic CLI & Agent authentication (hashed at rest) | Art. 32 Security of processing | Until revoked | Purged on revoke |
 | `studio_settings.name` | Business identification (may identify sole trader) | Art. 6(1)(b) | Instance lifetime | Exported with settings |
+| `studio_settings.lexware_api_key` | Lexware Office integration secret (AES-256-GCM encrypted) | Art. 6(1)(c) Compliance / Art. 32 | Until integration removed | Purged on disconnect |
 
 ---
 
@@ -25,6 +27,7 @@ This register documents all personal data processed by the application, its lawf
 | `questionnaire_answers.*` | Capturing wedding/shoot preferences | Art. 6(1)(b) Contract / Art. 6(1)(a) Consent | Active project + 1 year | Erased with client record |
 | `galleries.photos` | Image delivery & proofing | Art. 6(1)(b) Contract | Defined by studio package (e.g. 1–2 years online) | S3 objects hard deleted on expiry |
 | `consents.*` (Marketing, Portfolio) | Tracking consent to publish photos | Art. 6(1)(a) Consent / KUG §22 | Until consent withdrawn + 3 years proof | Retained as proof of prior consent |
+| `accounting_vouchers.*` (Invoice refs, amounts, VAT) | Statutory financial & e-invoicing compliance (Lexware Office) | Art. 6(1)(c) Legal obligation (§147 AO, §14 UStG) | 8 years (BEG IV 2025) | Retained under `legalHold`; purged after 8 years |
 
 ---
 
@@ -34,4 +37,4 @@ This register documents all personal data processed by the application, its lawf
 | --- | --- | --- | --- | --- |
 | `sessions.*` | User session management | Art. 32 Security of processing | 30 days maximum | Automatically purged on expiry |
 | `rate_limits.*` | Anti-automation & brute-force defense | Art. 6(1)(f) Legitimate Interest | 24 hours maximum | Automatically purged daily |
-| `audit_events.*` | Security accountability & breach investigation | Art. 5(2), Art. 32 | 24 months (configurable) | Pruned by retention sweep (pseudonymous IDs retained) |
+| `audit_events.*` | Security accountability, breach investigation & agent attribution | Art. 5(2), Art. 32 | 24 months (configurable) | Pruned by retention sweep (pseudonymous IDs retained) |
