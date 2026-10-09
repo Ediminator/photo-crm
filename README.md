@@ -87,6 +87,7 @@ All contributions must pass the deterministic quality gate:
 | `pnpm run format:check`   | Prettier code style check                                                      |
 | `pnpm run format:write`   | Automatically format all project files with Prettier                           |
 | `pnpm run lint`           | ESLint with strict TypeScript, React Hooks, JSX A11y, and security rules       |
+| `pnpm run lint:actions`   | Lint GitHub Actions workflows with actionlint, zizmor, and SHA-pinning checks  |
 | `pnpm run typecheck`      | Strict TypeScript compiler check (`tsc --noEmit`)                              |
 | `pnpm run check:i18n`     | Check completeness and ICU syntax of `messages/en.json` and `messages/de.json` |
 | `pnpm run test:unit`      | Fast unit test execution                                                       |
@@ -109,6 +110,7 @@ All contributions must pass the deterministic quality gate:
 - [Product Vision](docs/product/vision.md)
 - [MVP Scope](docs/product/mvp-scope.md)
 - [Local Development Guide](docs/operations/local-development.md)
+- [GitHub Repository Settings & Security Checklist](docs/operations/github-settings.md)
 - [Bilingual Glossary](docs/product/glossary.md)
 - [Architecture Decision Records (ADRs)](docs/architecture/adr/)
 - [Security Baseline](docs/security/security-baseline.md)

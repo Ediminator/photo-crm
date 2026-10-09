@@ -1,0 +1,67 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "name": "photo-crm-quality-steps",
+  "description": "Canonical ordered list of quality scripts matching the MAS gate full profile",
+  "steps": [
+    {
+      "id": "install",
+      "name": "Install (frozen lockfile)",
+      "cmd": "pnpm install --frozen-lockfile"
+    },
+    {
+      "id": "format",
+      "name": "Formatting (Prettier)",
+      "cmd": "pnpm run format:check"
+    },
+    {
+      "id": "lint",
+      "name": "Lint (ESLint incl. security, a11y)",
+      "cmd": "pnpm run lint"
+    },
+    {
+      "id": "typecheck",
+      "name": "Type check (tsc --noEmit, strict)",
+      "cmd": "pnpm run typecheck"
+    },
+    {
+      "id": "i18n",
+      "name": "i18n catalogue completeness (en/de)",
+      "cmd": "pnpm run check:i18n"
+    },
+    {
+      "id": "test",
+      "name": "Unit + integration tests with coverage >= 85%",
+      "cmd": "pnpm run test:coverage"
+    },
+    {
+      "id": "build",
+      "name": "Production build",
+      "cmd": "pnpm run build"
+    },
+    {
+      "id": "secrets",
+      "name": "Secret scan",
+      "cmd": "pnpm run scan:secrets"
+    },
+    {
+      "id": "sast",
+      "name": "Static application security testing",
+      "cmd": "pnpm run scan:sast"
+    },
+    {
+      "id": "deps",
+      "name": "Dependency vulnerability audit (high+)",
+      "cmd": "pnpm run scan:deps"
+    },
+    {
+      "id": "licenses",
+      "name": "Licence compliance (AGPL-compatible allowlist)",
+      "cmd": "pnpm run scan:licenses"
+    },
+    {
+      "id": "e2e",
+      "name": "End-to-end tests (Playwright, incl. axe smoke)",
+      "cmd": "pnpm run test:e2e"
+    }
+  ]
+}

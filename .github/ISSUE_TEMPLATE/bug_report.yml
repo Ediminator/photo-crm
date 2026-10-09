@@ -1,0 +1,58 @@
+name: Bug Report
+description: File a bug report to help improve Photo CRM
+title: 'fix: [short description of the issue]'
+labels: ['bug']
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for reporting an issue!
+        **Important:** Never include real personal data, client photos, email addresses, or secrets in bug reports. Use synthetic data only (e.g. `test@example.com`).
+        If you suspect a security vulnerability, please follow the confidential disclosure process in [SECURITY.md](../SECURITY.md) instead of creating a public issue.
+  - type: textarea
+    id: description
+    attributes:
+      label: Bug Description
+      description: A clear and concise description of what the bug is.
+      placeholder: Describe what happened...
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to Reproduce
+      description: Detailed steps to reproduce the behavior using synthetic data.
+      placeholder: |
+        1. Go to '...'
+        2. Click on '...'
+        3. See error
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected Behavior
+      description: A clear and concise description of what you expected to happen.
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment Information
+      description: Operating system, browser, Node version, Docker version, deployment setup.
+      placeholder: |
+        - OS: Ubuntu 24.04 / macOS Sequoia / Windows 11
+        - Node version: 24.x
+        - Browser: Chrome 130 / Firefox 131 / Safari 18
+        - Deployment: Docker Compose / Bare Metal
+    validations:
+      required: true
+  - type: checkboxes
+    id: checklists
+    attributes:
+      label: Verification
+      options:
+        - label: I confirmed that no real personal data, client data, or secrets are present in this issue.
+          required: true
+        - label: I searched existing issues and verified this is not a duplicate.
+          required: true

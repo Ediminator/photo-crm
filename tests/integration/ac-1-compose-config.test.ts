@@ -112,5 +112,5 @@ describe('AC-1: Docker Compose dev configuration security and integrity', () => 
 
     expect(result.status).toBe(0);
     expect(result.stdout).toContain('services:');
-  });
+  }, 15000);
 });
