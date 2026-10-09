@@ -17,20 +17,29 @@ const metaDir = path.resolve(drizzleDir, 'meta');
 
 /**
  * Checks for schema and migration drift.
+ * @param {object} [options]
+ * @param {string} [options.rootDir]
+ * @param {string} [options.drizzleDir]
+ * @param {string} [options.config]
  * @returns {{ valid: boolean, error?: string }}
  */
-export function checkSchemaDrift() {
-  if (!fs.existsSync(drizzleDir)) {
+export function checkSchemaDrift(options = {}) {
+  const targetRootDir = options.rootDir || rootDir;
+  const targetDrizzleDir = options.drizzleDir || path.resolve(targetRootDir, 'drizzle');
+  const targetMetaDir = path.resolve(targetDrizzleDir, 'meta');
+  const configArg = options.config ? ` --config="${options.config}"` : '';
+
+  if (!fs.existsSync(targetDrizzleDir)) {
     return {
       valid: false,
-      error: 'Migrations directory "drizzle/" does not exist. Run "pnpm db:generate" first.',
+      error: `Migrations directory "${targetDrizzleDir}" does not exist. Run "pnpm db:generate" first.`,
     };
   }
 
   // 1. Verify migration sequence integrity
   try {
-    execSync('pnpm exec drizzle-kit check', {
-      cwd: rootDir,
+    execSync(`pnpm exec drizzle-kit check${configArg}`, {
+      cwd: targetRootDir,
       encoding: 'utf8',
       stdio: 'pipe',
     });
@@ -41,18 +50,21 @@ export function checkSchemaDrift() {
     };
   }
 
-  // 2. Snapshot current migration directory
-  const filesBefore = new Set(fs.readdirSync(drizzleDir));
+  // 2. Snapshot current migration directory and meta directory
+  const filesBefore = new Set(fs.readdirSync(targetDrizzleDir));
+  const metaFilesBefore = fs.existsSync(targetMetaDir)
+    ? new Set(fs.readdirSync(targetMetaDir))
+    : new Set();
   let journalBefore = '';
-  const journalPath = path.resolve(metaDir, '_journal.json');
+  const journalPath = path.resolve(targetMetaDir, '_journal.json');
   if (fs.existsSync(journalPath)) {
     journalBefore = fs.readFileSync(journalPath, 'utf8');
   }
 
   let generateOutput = '';
   try {
-    generateOutput = execSync('pnpm exec drizzle-kit generate', {
-      cwd: rootDir,
+    generateOutput = execSync(`pnpm exec drizzle-kit generate${configArg}`, {
+      cwd: targetRootDir,
       encoding: 'utf8',
       stdio: 'pipe',
     });
@@ -64,16 +76,31 @@ export function checkSchemaDrift() {
   }
 
   // Clean up any files created by generate during drift check
-  const filesAfter = fs.readdirSync(drizzleDir);
+  const filesAfter = fs.readdirSync(targetDrizzleDir);
   let drifted = false;
   for (const file of filesAfter) {
     if (!filesBefore.has(file)) {
       drifted = true;
-      const fullPath = path.resolve(drizzleDir, file);
+      const fullPath = path.resolve(targetDrizzleDir, file);
       try {
         fs.rmSync(fullPath, { recursive: true, force: true });
       } catch {
         // ignore cleanup error
+      }
+    }
+  }
+
+  // Clean up any new snapshot files created in meta during drift check
+  if (fs.existsSync(targetMetaDir)) {
+    const metaFilesAfter = fs.readdirSync(targetMetaDir);
+    for (const file of metaFilesAfter) {
+      if (!metaFilesBefore.has(file)) {
+        drifted = true;
+        try {
+          fs.rmSync(path.resolve(targetMetaDir, file), { recursive: true, force: true });
+        } catch {
+          // ignore cleanup error
+        }
       }
     }
   }
@@ -94,7 +121,26 @@ export function checkSchemaDrift() {
 }
 
 if (process.argv[1] === __filename) {
-  const result = checkSchemaDrift();
+  let config;
+  let drizzleDirArg;
+  for (const arg of process.argv.slice(2)) {
+    if (arg.startsWith('--config=')) {
+      config = arg.slice('--config='.length);
+    }
+    if (arg.startsWith('--drizzle-dir=')) {
+      drizzleDirArg = arg.slice('--drizzle-dir='.length);
+    }
+  }
+  const configIdx = process.argv.indexOf('--config');
+  if (!config && configIdx !== -1 && process.argv[configIdx + 1]) {
+    config = process.argv[configIdx + 1];
+  }
+  const drizzleDirIdx = process.argv.indexOf('--drizzle-dir');
+  if (!drizzleDirArg && drizzleDirIdx !== -1 && process.argv[drizzleDirIdx + 1]) {
+    drizzleDirArg = process.argv[drizzleDirIdx + 1];
+  }
+
+  const result = checkSchemaDrift({ config, drizzleDir: drizzleDirArg });
   if (!result.valid) {
     console.error(`❌ ${result.error}`);
     process.exit(1);

@@ -1,12 +1,16 @@
 import { describe, it, expect } from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
+import { execFileSync } from 'node:child_process';
 import { PGlite } from '@electric-sql/pglite';
-import { loadMigrationSql } from '../helpers/db-test-helper';
+import { drizzle } from 'drizzle-orm/pglite';
+import { migrate } from 'drizzle-orm/pglite/migrator';
 import { checkSchemaDrift } from '../../scripts/db-check.mjs';
 
 describe('AC-1: Database migrations and drift detection', () => {
-  const drizzleDir = path.resolve(import.meta.dirname, '../../drizzle');
+  const rootDir = path.resolve(import.meta.dirname, '../..');
+  const drizzleDir = path.resolve(rootDir, 'drizzle');
+  const dbCheckScript = path.resolve(rootDir, 'scripts/db-check.mjs');
 
   it('AC-1: migration files are committed in drizzle/ and registered in journal', () => {
     expect(fs.existsSync(drizzleDir)).toBe(true);
@@ -31,8 +35,8 @@ describe('AC-1: Database migrations and drift detection', () => {
   it('AC-1: given an empty database, migrations apply all tables and constraints', async () => {
     const client = new PGlite();
     try {
-      const migrationSql = loadMigrationSql();
-      await client.exec(migrationSql);
+      const db = drizzle(client);
+      await migrate(db, { migrationsFolder: drizzleDir });
 
       const res = await client.query<{ column_name: string; data_type: string }>(
         "SELECT column_name, data_type FROM information_schema.columns WHERE table_name = 'studio_settings' ORDER BY ordinal_position",
@@ -56,19 +60,20 @@ describe('AC-1: Database migrations and drift detection', () => {
   it('AC-1: running migrations a second time is an idempotent no-op', async () => {
     const client = new PGlite();
     try {
-      const migrationSql = loadMigrationSql();
-      await client.exec(migrationSql);
+      const db = drizzle(client);
 
-      // Insert test row
+      // Run migrations for the first time using the real Drizzle migrator
+      await migrate(db, { migrationsFolder: drizzleDir });
+
+      // Insert test row into migrated schema
       await client.query(
         "INSERT INTO studio_settings (id, studio_name, default_locale, timezone, currency, created_at, updated_at) VALUES ('01912345-6789-7abc-8def-0123456789ab', 'Test Studio', 'en', 'UTC', 'EUR', NOW(), NOW())",
       );
 
-      // Running migration again must not throw and must leave existing rows intact
-      await client.exec(
-        'CREATE TABLE IF NOT EXISTS "studio_settings" ( "id" uuid PRIMARY KEY NOT NULL );',
-      );
+      // Running the actual migration runner a second time must execute cleanly without error
+      await migrate(db, { migrationsFolder: drizzleDir });
 
+      // Verify data remains intact after re-running migrations
       const rows = await client.query('SELECT count(*) as cnt FROM studio_settings');
       expect(Number((rows.rows[0] as { cnt: string | number }).cnt)).toBe(1);
     } finally {
@@ -80,5 +85,85 @@ describe('AC-1: Database migrations and drift detection', () => {
     const result = checkSchemaDrift();
     expect(result.valid).toBe(true);
     expect(result.error).toBeUndefined();
+  });
+
+  it('AC-1: checkSchemaDrift returns valid: false when migrations directory is missing', () => {
+    const missingDir = path.resolve(rootDir, 'nonexistent_drizzle_dir');
+    const result = checkSchemaDrift({ drizzleDir: missingDir });
+    expect(result.valid).toBe(false);
+    expect(result.error).toContain('does not exist');
+  });
+
+  it('AC-1: checkSchemaDrift fails and db:check exits non-zero when schema and migrations drift', () => {
+    const tempDir = path.resolve(rootDir, 'tests/fixtures/temp-drift-ac1');
+    fs.mkdirSync(tempDir, { recursive: true });
+
+    try {
+      // Copy existing migrations into tempDir
+      fs.cpSync(drizzleDir, path.join(tempDir, 'drizzle'), { recursive: true });
+
+      // Create a drifted schema with an unmigrated column
+      fs.writeFileSync(
+        path.join(tempDir, 'drift-schema.ts'),
+        `import { pgTable, uuid, text, timestamp } from 'drizzle-orm/pg-core';
+export const studioSettings = pgTable('studio_settings', {
+  id: uuid('id').primaryKey().notNull(),
+  studioName: text('studio_name').notNull(),
+  defaultLocale: text('default_locale').notNull().default('en'),
+  timezone: text('timezone').notNull().default('UTC'),
+  currency: text('currency').notNull().default('USD'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  unmigratedDriftColumn: text('unmigrated_drift_column'),
+});`,
+      );
+
+      // Create a drizzle.config.ts referencing the drifted schema
+      const relativeConfigPath = './tests/fixtures/temp-drift-ac1/drizzle.config.ts';
+      const configPath = path.resolve(rootDir, relativeConfigPath);
+      fs.writeFileSync(
+        configPath,
+        `import { defineConfig } from 'drizzle-kit';
+export default defineConfig({
+  schema: './tests/fixtures/temp-drift-ac1/drift-schema.ts',
+  out: './tests/fixtures/temp-drift-ac1/drizzle',
+  dialect: 'postgresql',
+});`,
+      );
+
+      // 1. Assert checkSchemaDrift() returns valid: false
+      const result = checkSchemaDrift({
+        drizzleDir: path.join(tempDir, 'drizzle'),
+        config: relativeConfigPath,
+      });
+      expect(result.valid).toBe(false);
+      expect(result.error).toContain('Schema drift detected');
+
+      // 2. Assert CLI execution exits with non-zero status code
+      let cliFailed = false;
+      try {
+        execFileSync(
+          process.execPath,
+          [
+            dbCheckScript,
+            `--config=${relativeConfigPath}`,
+            `--drizzle-dir=${path.join(tempDir, 'drizzle')}`,
+          ],
+          {
+            cwd: rootDir,
+            encoding: 'utf8',
+            stdio: 'pipe',
+          },
+        );
+      } catch (err: unknown) {
+        cliFailed = true;
+        const execError = err as { status: number; stderr: string };
+        expect(execError.status).toBe(1);
+        expect(execError.stderr).toContain('Schema drift detected');
+      }
+      expect(cliFailed).toBe(true);
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
   });
 });
