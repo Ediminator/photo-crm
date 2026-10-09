@@ -6,9 +6,58 @@
   },
   "nav": {
     "home": "Home",
-    "health": "Health Status"
+    "health": "Health Status",
+    "dashboard": "Dashboard",
+    "leads": "Leads",
+    "clients": "Clients",
+    "projects": "Projects",
+    "calendar": "Calendar",
+    "settings": "Settings",
+    "skipLink": "Skip to main content",
+    "openMenu": "Open navigation menu",
+    "closeMenu": "Close navigation menu",
+    "mainNavigation": "Main navigation",
+    "sidebar": "Sidebar navigation",
+    "owner": "Owner"
+  },
+  "theme": {
+    "toggle": "Toggle theme",
+    "light": "Light",
+    "dark": "Dark",
+    "system": "System"
+  },
+  "locale": {
+    "switcher": "Switch language",
+    "en": "English",
+    "de": "Deutsch"
   },
   "health": {
     "status": "System status is {status}"
+  },
+  "pages": {
+    "dashboard": {
+      "title": "Dashboard",
+      "description": "Overview of inquiries, upcoming shoots, and client activity."
+    },
+    "leads": {
+      "title": "Leads",
+      "description": "Manage new inquiries and potential clients before booking."
+    },
+    "clients": {
+      "title": "Clients",
+      "description": "Directory of clients and contact history."
+    },
+    "projects": {
+      "title": "Projects",
+      "description": "Client projects, scheduled shoots, and delivery pipelines."
+    },
+    "calendar": {
+      "title": "Calendar",
+      "description": "Calendar view of photo sessions, deadlines, and bookings."
+    },
+    "settings": {
+      "title": "Settings",
+      "description": "Configure studio preferences, business data, and account details."
+    }
   }
 }

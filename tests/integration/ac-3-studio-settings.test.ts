@@ -11,7 +11,7 @@ describe('AC-3: Studio settings repository and validation enforcement', () => {
 
   beforeEach(async () => {
     testDb = await createIsolatedTestDatabase();
-  });
+  }, 30000);
 
   afterEach(async () => {
     await testDb.destroy();

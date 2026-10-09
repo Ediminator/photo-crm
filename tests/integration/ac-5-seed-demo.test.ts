@@ -11,7 +11,7 @@ describe('AC-5: Deterministic synthetic demo seed and email safety', () => {
 
   beforeEach(async () => {
     testDb = await createIsolatedTestDatabase();
-  });
+  }, 30000);
 
   afterEach(async () => {
     await testDb.destroy();

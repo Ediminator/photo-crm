@@ -5,18 +5,30 @@ vi.mock('next-intl/server', () => ({
   getRequestConfig: (fn: unknown) => fn,
 }));
 
+vi.mock('next/font/local', () => ({
+  default: () => ({
+    variable: '--font-geist',
+    className: 'font-geist',
+  }),
+}));
+
 vi.mock('next-intl', () => ({
   hasLocale: (locales: string[], loc: string) => locales.includes(loc),
   useTranslations: () => (key: string) => `translated-${key}`,
+  NextIntlClientProvider: ({ children }: { children: React.ReactNode }) => children,
 }));
 
 const mockNotFound = vi.fn(() => {
   throw new Error('NEXT_NOT_FOUND');
 });
 
-vi.mock('next/navigation', () => ({
-  notFound: () => mockNotFound(),
-}));
+vi.mock('next/navigation', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('next/navigation')>();
+  return {
+    ...actual,
+    notFound: () => mockNotFound(),
+  };
+});
 
 import HomePage, { HomeContent } from '@/app/[locale]/page';
 import LocaleLayout, { generateStaticParams } from '@/app/[locale]/layout';
@@ -74,5 +86,20 @@ describe('App router localized layout and home page unit tests', () => {
     // Fallback to defaultLocale ('en') when invalid locale requested
     const fallbackConfig = await fn({ locale: 'es' });
     expect(fallbackConfig.locale).toBe('en');
+
+    // Test requestLocale promise resolution
+    const fnWithRequestLocale = requestConfig as unknown as (context: {
+      requestLocale: Promise<string | undefined>;
+    }) => Promise<{ locale: string; messages: Record<string, unknown> }>;
+
+    const deReqConfig = await fnWithRequestLocale({
+      requestLocale: Promise.resolve('de'),
+    });
+    expect(deReqConfig.locale).toBe('de');
+
+    const undefReqConfig = await fnWithRequestLocale({
+      requestLocale: Promise.resolve(undefined),
+    });
+    expect(undefReqConfig.locale).toBe('en');
   });
 });

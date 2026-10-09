@@ -1,5 +1,6 @@
 minimumReleaseAgeExclude:
   - '@types/node@24.19.2'
+  - lucide-react@1.54.0
 
 allowBuilds:
   '@parcel/watcher': true
