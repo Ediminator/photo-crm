@@ -16,7 +16,10 @@ const drizzleDir = path.resolve(import.meta.dirname, '../../drizzle');
 /**
  * Reads and concatenates all committed SQL migration files from the drizzle/ directory in order.
  */
+let cachedSql: string | null = null;
+
 export function loadMigrationSql(): string {
+  if (cachedSql) return cachedSql;
   const metaJournalPath = path.resolve(drizzleDir, 'meta/_journal.json');
   if (fs.existsSync(metaJournalPath)) {
     const journal = JSON.parse(fs.readFileSync(metaJournalPath, 'utf8')) as {
@@ -29,7 +32,8 @@ export function loadMigrationSql(): string {
         sqlStatements.push(fs.readFileSync(sqlFile, 'utf8'));
       }
     }
-    return sqlStatements.join('\n');
+    cachedSql = sqlStatements.join('\n');
+    return cachedSql;
   }
 
   // Fallback: read all .sql files sorted

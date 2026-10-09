@@ -23,6 +23,6 @@ describe('src foundational modules', () => {
 
   it('middleware is properly configured with route matchers', () => {
     expect(typeof middleware).toBe('function');
-    expect(middlewareConfig.matcher).toEqual(['/', '/(de|en)/:path*']);
+    expect(middlewareConfig.matcher).toEqual(['/((?!api|_next|_vercel|.*\\..*).*)']);
   });
 });

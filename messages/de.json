@@ -6,9 +6,58 @@
   },
   "nav": {
     "home": "Startseite",
-    "health": "Systemstatus"
+    "health": "Systemstatus",
+    "dashboard": "Dashboard",
+    "leads": "Anfragen",
+    "clients": "Kund:innen",
+    "projects": "Projekte",
+    "calendar": "Kalender",
+    "settings": "Einstellungen",
+    "skipLink": "Zum Hauptinhalt springen",
+    "openMenu": "Navigationsmenü öffnen",
+    "closeMenu": "Navigationsmenü schließen",
+    "mainNavigation": "Hauptnavigation",
+    "sidebar": "Seitenleistennavigation",
+    "owner": "Inhaber:in"
+  },
+  "theme": {
+    "toggle": "Farbschema umschalten",
+    "light": "Hell",
+    "dark": "Dunkel",
+    "system": "System"
+  },
+  "locale": {
+    "switcher": "Sprache wechseln",
+    "en": "English",
+    "de": "Deutsch"
   },
   "health": {
     "status": "Systemstatus ist {status}"
+  },
+  "pages": {
+    "dashboard": {
+      "title": "Dashboard",
+      "description": "Überblick über Anfragen, anstehende Shootings und Kundenaktivitäten."
+    },
+    "leads": {
+      "title": "Anfragen",
+      "description": "Eingehende Anfragen und potentielle Kund:innen vor der Buchung verwalten."
+    },
+    "clients": {
+      "title": "Kund:innen",
+      "description": "Verzeichnis der Kund:innen und Kontakthistorie."
+    },
+    "projects": {
+      "title": "Projekte",
+      "description": "Kundenprojekte, geplante Shootings und Übergabe-Pipelines."
+    },
+    "calendar": {
+      "title": "Kalender",
+      "description": "Kalenderansicht für Foto-Sessions, Fristen und Buchungen."
+    },
+    "settings": {
+      "title": "Einstellungen",
+      "description": "Studio-Einstellungen, Unternehmensdaten und Kontodetails konfigurieren."
+    }
   }
 }

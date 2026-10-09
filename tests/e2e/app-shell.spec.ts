@@ -1,0 +1,223 @@
+import { test, expect } from '@playwright/test';
+import AxeBuilder from '@axe-core/playwright';
+
+test.describe('App Shell, Theming, and Internationalization E2E', () => {
+  test('AC-1: redirects / to /de on Accept-Language: de-DE,de;q=0.9 and sets html lang=de', async ({
+    browser,
+  }) => {
+    const context = await browser.newContext({
+      locale: 'de-DE',
+      extraHTTPHeaders: {
+        'Accept-Language': 'de-DE,de;q=0.9',
+      },
+    });
+    const page = await context.newPage();
+    await page.goto('/');
+
+    await expect(page).toHaveURL(/\/de$/);
+    const htmlLang = await page.getAttribute('html', 'lang');
+    expect(htmlLang).toBe('de');
+    await context.close();
+  });
+
+  test('AC-1: redirects / to /en on Accept-Language: en-US and sets html lang=en', async ({
+    browser,
+  }) => {
+    const context = await browser.newContext({
+      locale: 'en-US',
+      extraHTTPHeaders: {
+        'Accept-Language': 'en-US,en;q=0.9',
+      },
+    });
+    const page = await context.newPage();
+    await page.goto('/');
+
+    await expect(page).toHaveURL(/\/en$/);
+    const htmlLang = await page.getAttribute('html', 'lang');
+    expect(htmlLang).toBe('en');
+    await context.close();
+  });
+
+  test('AC-1: falls back to /en for unsupported languages (fr-FR)', async ({ browser }) => {
+    const context = await browser.newContext({
+      locale: 'fr-FR',
+      extraHTTPHeaders: {
+        'Accept-Language': 'fr-FR,fr;q=0.9',
+      },
+    });
+    const page = await context.newPage();
+    await page.goto('/');
+
+    await expect(page).toHaveURL(/\/en$/);
+    const htmlLang = await page.getAttribute('html', 'lang');
+    expect(htmlLang).toBe('en');
+    await context.close();
+  });
+
+  test('AC-2: language switcher preserves current route and persists choice across reloads', async ({
+    page,
+  }) => {
+    // Navigate to /en/leads
+    await page.goto('/en/leads');
+    await expect(page.locator('h1')).toHaveText('Leads');
+
+    // Open language switcher
+    await page.click('[data-testid="locale-switcher-trigger"]');
+    await page.click('[data-testid="locale-option-de"]');
+
+    // Route preserved to /de/leads
+    await expect(page).toHaveURL(/\/de\/leads$/);
+    await expect(page.locator('h1')).toHaveText('Anfragen');
+
+    // Reload page to verify persistence
+    await page.reload();
+    await expect(page).toHaveURL(/\/de\/leads$/);
+    await expect(page.locator('h1')).toHaveText('Anfragen');
+
+    // Open another page without locale prefix to verify cookie persistence
+    await page.goto('/clients');
+    await expect(page).toHaveURL(/\/de\/clients$/);
+    await expect(page.locator('h1')).toHaveText('Kund:innen');
+  });
+
+  test('AC-4: keyboard navigation has skip-link as first element, visible focus, and mobile drawer traps focus', async ({
+    page,
+  }) => {
+    // 1. Skip-link test on desktop
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto('/en');
+
+    // Press Tab from initial page load
+    await page.keyboard.press('Tab');
+    const skipLink = page.locator('[data-testid="skip-link"]');
+    await expect(skipLink).toBeFocused();
+    await expect(skipLink).toBeVisible();
+
+    // Activate skip-link
+    await page.keyboard.press('Enter');
+    const mainContent = page.locator('#main-content');
+    await expect(mainContent).toBeFocused();
+
+    // 2. Mobile drawer focus trapping test
+    await page.setViewportSize({ width: 375, height: 667 });
+    await page.goto('/en');
+
+    const menuTrigger = page.locator('[data-testid="mobile-menu-trigger"]');
+    await expect(menuTrigger).toBeVisible();
+    await menuTrigger.click();
+
+    const drawer = page.locator('[data-testid="mobile-drawer"]');
+    await expect(drawer).toBeVisible();
+
+    // Tab multiple times to verify focus remains within mobile drawer
+    for (let i = 0; i < 6; i++) {
+      await page.keyboard.press('Tab');
+      const isFocusedInDrawer = await drawer.evaluate((node) =>
+        node.contains(document.activeElement),
+      );
+      expect(isFocusedInDrawer).toBe(true);
+    }
+
+    // Press Escape to close and verify focus returns to trigger
+    await page.keyboard.press('Escape');
+    await expect(drawer).toBeHidden();
+    await expect(menuTrigger).toBeFocused();
+  });
+
+  test('AC-5: browser makes zero requests to third-party hosts on production build', async ({
+    page,
+  }) => {
+    const thirdPartyRequests: string[] = [];
+
+    page.on('request', (req) => {
+      const url = new URL(req.url());
+      if (
+        url.hostname !== 'localhost' &&
+        url.hostname !== '127.0.0.1' &&
+        !url.protocol.startsWith('data:') &&
+        !url.protocol.startsWith('blob:')
+      ) {
+        thirdPartyRequests.push(req.url());
+      }
+    });
+
+    await page.goto('/en');
+    await page.waitForLoadState('networkidle');
+
+    expect(thirdPartyRequests).toEqual([]);
+  });
+
+  test('AC-7: applies dark theme before hydration without visible flash', async ({ browser }) => {
+    const context = await browser.newContext({
+      colorScheme: 'dark',
+    });
+    const page = await context.newPage();
+
+    await page.goto('/en');
+
+    // The dark class should be applied immediately
+    const htmlClass = await page.getAttribute('html', 'class');
+    expect(htmlClass).toContain('dark');
+
+    // Verify computed background style is dark (#09090b or rgb(9, 9, 11))
+    const bodyBg = await page.evaluate(
+      () => window.getComputedStyle(document.body).backgroundColor,
+    );
+    expect(bodyBg).toBe('rgb(9, 9, 11)');
+
+    await context.close();
+  });
+
+  test.describe('AC-3: Axe accessibility audit across all shell pages, locales, themes, and viewports', () => {
+    const pages = ['/', '/leads', '/clients', '/projects', '/calendar', '/settings'];
+    const viewports = [
+      { name: 'mobile', width: 375, height: 667 },
+      { name: 'desktop', width: 1440, height: 900 },
+    ];
+    const locales = ['en', 'de'];
+    const themes: ('light' | 'dark')[] = ['light', 'dark'];
+
+    for (const locale of locales) {
+      for (const theme of themes) {
+        for (const vp of viewports) {
+          test(`AC-3: axe check ${locale} ${theme} at ${String(vp.width)}px for all shell routes`, async ({
+            page,
+          }) => {
+            await page.setViewportSize({ width: vp.width, height: vp.height });
+            await page.emulateMedia({ colorScheme: theme });
+
+            for (const path of pages) {
+              const url = `/${locale}${path === '/' ? '' : path}`;
+              await page.goto(url);
+
+              // Set theme via localStorage if needed to ensure dark/light class
+              await page.evaluate((t) => {
+                document.documentElement.classList.remove('light', 'dark');
+                document.documentElement.classList.add(t);
+              }, theme);
+
+              const results = await new AxeBuilder({ page })
+                .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'])
+                .analyze();
+
+              const seriousOrCritical = results.violations.filter(
+                (v) => v.impact === 'serious' || v.impact === 'critical',
+              );
+
+              const summary = seriousOrCritical
+                .map(
+                  (v) =>
+                    `${v.id} (${v.impact ?? 'unknown'}): ${v.description} on ${v.nodes.map((n) => n.html).join(', ')}`,
+                )
+                .join('\n');
+              expect(
+                seriousOrCritical,
+                `Axe violations on ${url} (${theme}, ${String(vp.width)}px):\n${summary}`,
+              ).toEqual([]);
+            }
+          });
+        }
+      }
+    }
+  });
+});

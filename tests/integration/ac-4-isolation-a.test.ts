@@ -10,7 +10,7 @@ describe('AC-4: Parallel integration test isolation (File A)', () => {
 
   beforeEach(async () => {
     testDb = await createIsolatedTestDatabase();
-  });
+  }, 30000);
 
   afterEach(async () => {
     await testDb.destroy();

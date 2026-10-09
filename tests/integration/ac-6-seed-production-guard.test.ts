@@ -14,7 +14,7 @@ describe('AC-6: Seed demo production safety guards', () => {
 
   beforeEach(async () => {
     testDb = await createIsolatedTestDatabase();
-  });
+  }, 30000);
 
   afterEach(async () => {
     await testDb.destroy();
