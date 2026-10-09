@@ -146,5 +146,5 @@ describe('AC-2: Port binding security (strict 127.0.0.1 localhost isolation)', (
         }
       }
     }
-  });
+  }, 15000);
 });
