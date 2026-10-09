@@ -7,6 +7,7 @@ Selected by the maintainer on 2026-10-09. Each epic is decomposed into task cont
 - Clients (person or company) with contacts, addresses, preferred language, and notes.
 - Relationship history timeline: enquiries, projects, emails sent, documents, portal activity.
 - Tags and search; duplicate detection by email.
+- **Google Contacts Sync (Opt-In):** One-way sync from CRM clients to photographer's Google Contacts via People API so caller ID identifies clients on mobile devices during shoot days.
 - **Privacy:** per-person data export (JSON plus human-readable output), erasure with retention-lock awareness, and consent records (marketing, image usage).
 - _(later)_ CSV import from other CRMs (Phase 2).
 
@@ -27,7 +28,9 @@ Selected by the maintainer on 2026-10-09. Each epic is decomposed into task cont
 
 - Studio calendar showing shoots, appointments and blocked time.
 - Availability rules and public booking pages (session types, durations, buffers, lead time).
-- iCal feed (secret URL, revocable). Two-way sync with Google Calendar (OAuth, minimal scopes) and CalDAV (Nextcloud, iCloud and others) as **opt-in** integrations.
+- Two-way sync with Google Calendar (OAuth, minimal scopes) and CalDAV (Nextcloud, iCloud and others) as **opt-in** integrations.
+- **Google Meet Integration:** Auto-generation of Google Meet video links for consultation calls booked through the scheduler.
+- iCal feed (secret URL, revocable).
 - Time zones handled explicitly; reminders via E8.
 
 ## E5: Packages, quotes & proposals
@@ -92,4 +95,4 @@ Selected by the maintainer on 2026-10-09. Each epic is decomposed into task cont
 
 ## Explicitly out of scope for v1.0
 
-Native in-house GoBD certification engine and direct bank-account feeds (provided externally via the Lexware Office connector in Phase 1; full native in-house engine is post-MVP), payment plans, Stripe credit card processing, expenses and mileage, reporting dashboards beyond basic counts, team members and roles, multi-tenant SaaS, native apps.
+Native in-house GoBD certification engine and direct bank-account feeds (provided externally via the Lexware Office connector in Phase 1; full native in-house engine is post-MVP), domain registration and DNS management (handled externally at registrar/DNS level), Google Drive for primary gallery/video delivery (handled via S3-compatible storage), full two-way Gmail inbox scraping (outgoing transactional mail is tracked), payment plans, Stripe credit card processing, expenses and mileage, reporting dashboards beyond basic counts, team members and roles, multi-tenant SaaS, native apps.
