@@ -19,13 +19,16 @@ This architecture document guides the implementation of data protection principl
 The system provides built-in mechanisms to handle data subject access requests (DSARs):
 
 ### Right to Access & Data Portability (Art. 15, Art. 20)
+
 - **One-Click Export:** The studio owner can generate a complete machine-readable archive (JSON) and a human-readable document (PDF/HTML) of all data associated with a contact or client.
 - **Includes:** Contact details, shoot history, contract records, questionnaire responses, gallery proofing choices, and consent history.
 
 ### Right to Rectification (Art. 16)
+
 - Clients can review and update their contact details directly via the authenticated client portal.
 
 ### Right to Erasure / "To Be Forgotten" (Art. 17)
+
 - **Automated Anonymisation or Hard Deletion:** When an erasure request is executed, all non-legally-retained personal data is purged or pseudonymised.
 - **Conflict with Legal Retention:** If financial vouchers or signed contracts are subject to statutory retention (e.g. German GoBD / §147 AO), those specific records are locked under a `legalHold`, isolated from regular operational search, and flagged for deletion once the retention period lapses.
 

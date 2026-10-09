@@ -42,22 +42,26 @@
 ### Getting Started
 
 1. Clone the repository and install dependencies:
+
    ```bash
    pnpm install --frozen-lockfile
    ```
 
 2. Configure environment:
+
    ```bash
    cp .env.example .env
    # Edit .env with your local secrets
    ```
 
 3. Start local development services (PostgreSQL, Mailpit, local object storage):
+
    ```bash
    pnpm services:up
    ```
 
 4. Run database migrations and seed synthetic demo data:
+
    ```bash
    pnpm db:migrate
    pnpm db:seed:demo
@@ -75,20 +79,24 @@
 
 All contributions must pass the deterministic quality gate:
 
-| Command | Purpose |
-| --- | --- |
-| `pnpm run format:check` | Prettier code style check |
-| `pnpm run lint` | ESLint with strict TypeScript, React Hooks, JSX A11y, and security rules |
-| `pnpm run typecheck` | Strict TypeScript compiler check (`tsc --noEmit`) |
-| `pnpm run check:i18n` | Check completeness and ICU syntax of `messages/en.json` and `messages/de.json` |
-| `pnpm run test:unit` | Fast unit test execution |
-| `pnpm run test:coverage` | Unit & integration tests with mandatory ≥ 85% coverage threshold |
-| `pnpm run build` | Next.js production build |
-| `pnpm run scan:secrets` | Secretlint credential and key scan |
-| `pnpm run scan:sast` | Static application security testing (SAST) |
-| `pnpm run scan:deps` | Dependency vulnerability audit (`pnpm audit --audit-level high`) |
-| `pnpm run scan:licenses` | AGPL-3.0 licence compatibility check |
-| `pnpm run test:e2e` | Playwright E2E and automated accessibility (`@axe-core/playwright`) tests |
+| Command                  | Purpose                                                                        |
+| ------------------------ | ------------------------------------------------------------------------------ |
+| `pnpm run dev`           | Start Next.js development server                                               |
+| `pnpm run build`         | Next.js production build                                                       |
+| `pnpm run start`         | Start Next.js production server from build                                     |
+| `pnpm run format:check`  | Prettier code style check                                                      |
+| `pnpm run format:write`  | Automatically format all project files with Prettier                           |
+| `pnpm run lint`          | ESLint with strict TypeScript, React Hooks, JSX A11y, and security rules       |
+| `pnpm run typecheck`     | Strict TypeScript compiler check (`tsc --noEmit`)                              |
+| `pnpm run check:i18n`    | Check completeness and ICU syntax of `messages/en.json` and `messages/de.json` |
+| `pnpm run test:unit`     | Fast unit test execution                                                       |
+| `pnpm run test:coverage` | Unit & integration tests with mandatory ≥ 85% coverage threshold               |
+| `pnpm run scan:secrets`  | Secretlint credential and key scan                                             |
+| `pnpm run scan:sast`     | Static application security testing (SAST)                                     |
+| `pnpm run scan:deps`     | Dependency vulnerability audit (`pnpm audit --audit-level high`)               |
+| `pnpm run scan:licenses` | AGPL-3.0 licence compatibility check                                           |
+| `pnpm run test:e2e`      | Playwright E2E and automated accessibility (`@axe-core/playwright`) tests      |
+| `pnpm run prepare`       | Initialize Lefthook Git hooks (pre-commit and commit-msg)                      |
 
 ---
 

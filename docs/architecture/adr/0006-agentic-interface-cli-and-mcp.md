@@ -6,6 +6,7 @@
 ## Context
 
 Photographers and studio operators increasingly use AI agents (such as Antigravity, Claude, Cursor, and custom local assistants) and command-line automation for routine business workflows:
+
 - Triaging inbound inquiries and questionnaire responses
 - Checking shoot schedules and calendar conflicts
 - Triggering client follow-ups and status transitions
@@ -71,14 +72,14 @@ We will implement **both** a headless TypeScript CLI tool (`pcrm`) and a Model C
 ## Alternatives Considered
 
 - **CLI-only:**
-  - *Pros:* Simple to build with standard Node CLI libraries (`commander`, `citty`).
-  - *Cons:* AI agents must run shell commands and parse unstructured or semi-structured stdout, leading to hallucinated arguments, brittle tool definitions, and weak context negotiation.
+  - _Pros:_ Simple to build with standard Node CLI libraries (`commander`, `citty`).
+  - _Cons:_ AI agents must run shell commands and parse unstructured or semi-structured stdout, leading to hallucinated arguments, brittle tool definitions, and weak context negotiation.
 - **REST API only:**
-  - *Pros:* Industry standard, straightforward HTTP endpoints.
-  - *Cons:* Leaves terminal users without a streamlined workflow and requires agent developers to build custom client wrappers rather than plugging directly into the standardized Model Context Protocol ecosystem.
+  - _Pros:_ Industry standard, straightforward HTTP endpoints.
+  - _Cons:_ Leaves terminal users without a streamlined workflow and requires agent developers to build custom client wrappers rather than plugging directly into the standardized Model Context Protocol ecosystem.
 - **MCP Server only:**
-  - *Pros:* Native integration with modern AI agent clients.
-  - *Cons:* Excludes standard bash scripts, cron jobs, CI/CD pipelines, and human terminal users who need fast command-line access without running an LLM.
+  - _Pros:_ Native integration with modern AI agent clients.
+  - _Cons:_ Excludes standard bash scripts, cron jobs, CI/CD pipelines, and human terminal users who need fast command-line access without running an LLM.
 - **Chosen: Shared SDK with CLI and MCP:**
   - Provides maximum versatility with zero duplication of business logic and authorization rules.
 

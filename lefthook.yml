@@ -1,0 +1,14 @@
+# Lefthook Git Hooks Configuration
+pre-commit:
+  parallel: false
+  commands:
+    prettier:
+      glob: '*.{js,ts,jsx,tsx,json,md,css,yml,yaml}'
+      run: pnpm exec prettier --check {staged_files}
+    secretlint:
+      run: pnpm exec secretlint {staged_files}
+
+commit-msg:
+  commands:
+    conventional-commit:
+      run: node scripts/check-commit-msg.mjs {1}

@@ -6,15 +6,15 @@ This threat model identifies key assets, trust boundaries, threat actors, and ST
 
 ## 1. System Assets
 
-| Asset ID | Asset Name | Description | Sensitivity |
-| --- | --- | --- | --- |
-| **A-1** | Client Personal Data | Names, emails, phones, addresses, shoot dates, relationship history | High (GDPR/CCPA) |
-| **A-2** | Client Imagery & Videos | Raw and derivative photos/videos, including family photos and photos of minors | Critical |
-| **A-3** | Legal Contracts & Signatures | Signed agreements, financial terms, simple electronic signature audit trails | High |
-| **A-4** | Studio Owner Credentials | Admin password hashes, TOTP secrets, WebAuthn credentials, session tokens | Critical |
-| **A-5** | Third-Party Integration Secrets | SMTP passwords, Google OAuth refresh tokens, CalDAV credentials, S3 API keys, Lexware API tokens | Critical |
-| **A-6** | Invoices & Accounting Records | Financial vouchers subject to GoBD / §14 UStG, sealed in Lexware and referenced in CRM | High |
-| **A-7** | Scoped Agent API Tokens | Bearer keys (`pcrm_live_...`) authorizing CLI automation and MCP agent tools | Critical |
+| Asset ID | Asset Name                      | Description                                                                                      | Sensitivity      |
+| -------- | ------------------------------- | ------------------------------------------------------------------------------------------------ | ---------------- |
+| **A-1**  | Client Personal Data            | Names, emails, phones, addresses, shoot dates, relationship history                              | High (GDPR/CCPA) |
+| **A-2**  | Client Imagery & Videos         | Raw and derivative photos/videos, including family photos and photos of minors                   | Critical         |
+| **A-3**  | Legal Contracts & Signatures    | Signed agreements, financial terms, simple electronic signature audit trails                     | High             |
+| **A-4**  | Studio Owner Credentials        | Admin password hashes, TOTP secrets, WebAuthn credentials, session tokens                        | Critical         |
+| **A-5**  | Third-Party Integration Secrets | SMTP passwords, Google OAuth refresh tokens, CalDAV credentials, S3 API keys, Lexware API tokens | Critical         |
+| **A-6**  | Invoices & Accounting Records   | Financial vouchers subject to GoBD / §14 UStG, sealed in Lexware and referenced in CRM           | High             |
+| **A-7**  | Scoped Agent API Tokens         | Bearer keys (`pcrm_live_...`) authorizing CLI automation and MCP agent tools                     | Critical         |
 
 ---
 
@@ -54,25 +54,31 @@ This threat model identifies key assets, trust boundaries, threat actors, and ST
 ## 4. STRIDE Threat Analysis & Mitigations
 
 ### Spoofing
+
 - **Threat:** Attacker spoofs studio owner, claims initial instance setup, or forges agent token.
 - **Mitigation:** Setup token required for initial instance bootstrap (`SETUP_TOKEN`); argon2id password hashing; mandatory MFA (TOTP/WebAuthn); constant-time token comparison; SHA-256 hashed API keys with required scopes.
 
 ### Tampering
+
 - **Threat:** Client, attacker, or rogue agent modifies signed contract, issued invoice, or audit records.
 - **Mitigation:** Append-only audit logs with DB triggers preventing UPDATE/DELETE; SHA-256 document hashing of signed PDFs; parameterized queries via Drizzle ORM; Lexware Office immutable voucher locking; webhook HMAC signature verification.
 
 ### Repudiation
+
 - **Threat:** Client disputes contract signature or owner disputes agent-initiated actions.
 - **Mitigation:** E-signature audit trail recording document hash, timestamp, signer IP, and user agent; immutable agent audit logging with `actor_type: 'agent'`, `token_id`, `tool_name`, and arguments hash.
 
 ### Information Disclosure
+
 - **Threat:** Attacker enumerates accounts, reads other clients' galleries (IDOR), steals credentials from logs, or LLM agent exposes client PII.
 - **Mitigation:** Object-level authorization checks; generic error messages; automatic log redaction of PII; private S3 buckets with short-lived pre-signed URLs; EXIF/GPS stripping; PII masking by default in CLI/MCP outputs; strict data minimization when syncing to Lexware Office.
 
 ### Denial of Service
+
 - **Threat:** Attacker spams inquiry forms, uploads huge files, or an agent enters an infinite loop.
 - **Mitigation:** Database-backed rate limiting per IP and per API token; honeypot fields; proof-of-work bot protection; server-side file size and magic-byte checks; streaming uploads; agent token rate limiting.
 
 ### Elevation of Privilege
+
 - **Threat:** Client portal user escalates to studio admin privileges, or an agent with read scope executes write actions.
 - **Mitigation:** Strict server-side route guards (`requireOwner()`, `requireAuth({ scopes })`); granular API token permission enforcement (e.g. `clients:read` cannot invoke `clients:write` or `lexware:sync`); separate portal token authorization context.

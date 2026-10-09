@@ -6,14 +6,15 @@
 ## Context
 
 German tax law imposes stringent, legally binding requirements on invoicing, record retention, and electronic tax audits:
-1. **GoBD:** Demands immutability of accounting records, gapless chronological audit trails, and strict retention periods (§147 AO, currently 8 years under BEG IV 2025; 10 years for books and balance sheets). Once issued, invoices cannot be modified or deleted—corrections require formal cancellation invoices (*Stornorechnungen*).
-2. **Umsatzsteuergesetz (§14 UStG):** Mandates sequential, collision-free invoice numbering, specific mandatory company and tax details, and accurate VAT rate attribution (e.g. standard 19%, 7% artistic/licensing rate where applicable, or §19 UStG *Kleinunternehmer* exemption).
+
+1. **GoBD:** Demands immutability of accounting records, gapless chronological audit trails, and strict retention periods (§147 AO, currently 8 years under BEG IV 2025; 10 years for books and balance sheets). Once issued, invoices cannot be modified or deleted—corrections require formal cancellation invoices (_Stornorechnungen_).
+2. **Umsatzsteuergesetz (§14 UStG):** Mandates sequential, collision-free invoice numbering, specific mandatory company and tax details, and accurate VAT rate attribution (e.g. standard 19%, 7% artistic/licensing rate where applicable, or §19 UStG _Kleinunternehmer_ exemption).
 3. **Mandatory B2B E-Invoicing (EN 16931):** Starting January 2025 (with phased transition rules through 2026/2027), German businesses must be capable of receiving and issuing structured electronic invoices conformant to European standard EN 16931 (ZUGFeRD 2.x and XRechnung).
-4. **Tax Advisor Integration:** Photographers routinely export financial data to DATEV format for their tax advisors (*Steuerberater*).
+4. **Tax Advisor Integration:** Photographers routinely export financial data to DATEV format for their tax advisors (_Steuerberater_).
 
 Building, verifying, maintaining, and legally defending an in-house GoBD-certified accounting and e-invoicing engine inside a self-hosted open-source CRM involves substantial liability, continuous regulatory maintenance, and complex banking reconciliation features.
 
-In Germany, Lexware Office (formerly *lexoffice*) is the leading certified cloud accounting platform used by solo photographers and creative studios for GoBD compliance, e-invoicing, bank account matching, and tax filings.
+In Germany, Lexware Office (formerly _lexoffice_) is the leading certified cloud accounting platform used by solo photographers and creative studios for GoBD compliance, e-invoicing, bank account matching, and tax filings.
 
 ## Decision
 
@@ -46,9 +47,9 @@ The integration implements four core workflows:
 
 1. **Two-Way Contact Synchronization:**
    - Synchronizes CRM `clients` with Lexware `contacts` (companies and individuals).
-   - Bi-directionally maps customer numbers, VAT identification numbers (*USt-IdNr.*), billing addresses, and contact persons.
+   - Bi-directionally maps customer numbers, VAT identification numbers (_USt-IdNr._), billing addresses, and contact persons.
 2. **Invoice & Down-Payment Generation:**
-   - Automatically generates draft or finalized invoices and down-payment invoices (*Anzahlungsrechnungen*) in Lexware upon proposal acceptance, contract signing, or shoot completion.
+   - Automatically generates draft or finalized invoices and down-payment invoices (_Anzahlungsrechnungen_) in Lexware upon proposal acceptance, contract signing, or shoot completion.
    - Accurately passes line items from packages/add-ons with applicable VAT rates (e.g., 19% standard, 7% copyright/licensing, or 0% §19 UStG note).
 3. **Sealed Document Retrieval for Client Portal:**
    - Fetches the finalized, tamper-proof invoice PDF/A-3 (including embedded ZUGFeRD / XRechnung XML) from Lexware Office via API.
@@ -92,14 +93,14 @@ The Lexware Office connector implements this interface as `LexwareOfficeProvider
 ## Alternatives Considered
 
 - **Native In-House GoBD & E-Invoicing Engine:**
-  - *Pros:* Fully self-contained within the CRM with no external service dependency.
-  - *Cons:* Extremely high development and maintenance burden; requires implementing PDF/A-3 generation, EN 16931 XML compilation, atomic gapless sequence counters, financial correction workflows, banking account synchronization, and certified DATEV tax advisor export modules. High risk of legal non-compliance for German studios.
+  - _Pros:_ Fully self-contained within the CRM with no external service dependency.
+  - _Cons:_ Extremely high development and maintenance burden; requires implementing PDF/A-3 generation, EN 16931 XML compilation, atomic gapless sequence counters, financial correction workflows, banking account synchronization, and certified DATEV tax advisor export modules. High risk of legal non-compliance for German studios.
 - **SevDesk Integration:**
-  - *Pros:* Popular German accounting solution with cloud API.
-  - *Cons:* Lexware Office currently holds a larger user base among freelance and commercial photographers in Germany and provides comprehensive webhook support for automated payment status synchronization. SevDesk can be added as an alternate provider in Phase 2 via the `AccountingProvider` interface.
+  - _Pros:_ Popular German accounting solution with cloud API.
+  - _Cons:_ Lexware Office currently holds a larger user base among freelance and commercial photographers in Germany and provides comprehensive webhook support for automated payment status synchronization. SevDesk can be added as an alternate provider in Phase 2 via the `AccountingProvider` interface.
 - **Manual CSV/DATEV Export Only:**
-  - *Pros:* Simpler initial implementation.
-  - *Cons:* High operational friction for photographers; requires manual export/import steps, lacks real-time payment reconciliation, and cannot deliver sealed invoices directly to clients via the Client Portal.
+  - _Pros:_ Simpler initial implementation.
+  - _Cons:_ High operational friction for photographers; requires manual export/import steps, lacks real-time payment reconciliation, and cannot deliver sealed invoices directly to clients via the Client Portal.
 
 ## Consequences
 

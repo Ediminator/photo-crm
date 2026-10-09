@@ -16,6 +16,7 @@ We take the security of this project and the personal data of photographers and 
 ### What to Include
 
 Please provide detailed information to help us understand and resolve the issue quickly:
+
 - Description of the vulnerability and its potential impact.
 - Affected component, route, server action, or dependency.
 - Step-by-step reproduction instructions, Proof of Concept (PoC) code, or HTTP request traces (using synthetic/fake credentials only).
@@ -32,6 +33,7 @@ Please provide detailed information to help us understand and resolve the issue 
 ## Security Standards & Baselines
 
 This project adheres to:
+
 1. **OWASP ASVS 5.0 (Application Security Verification Standard) Level 2**
 2. **OWASP Top 10**
 3. **Privacy by Design & Default (GDPR Art. 25, CCPA/CPRA)**

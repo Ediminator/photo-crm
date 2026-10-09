@@ -43,6 +43,7 @@ By making a contribution to this project, I certify that:
 ```
 
 To sign your commit, use the `-s` flag:
+
 ```bash
 git commit -s -m "feat(clients): add client note history"
 ```
@@ -52,10 +53,13 @@ git commit -s -m "feat(clients): add client note history"
 ## Commit Guidelines
 
 We use **Conventional Commits**:
+
 ```text
 <type>(<scope>): <short summary in imperative present tense> (<optional issue/task ref>)
 ```
+
 Examples:
+
 - `feat(leads): add honeypot spam protection (TASK-0012)`
 - `fix(auth): invalidate sessions upon password change (TASK-0015)`
 - `test(portal): add IDOR negative tests for contract signing (TASK-0020)`
@@ -67,6 +71,7 @@ Allowed types: `feat`, `fix`, `refactor`, `test`, `chore`, `ci`, `docs`, `sec`, 
 ## Development & Quality Gate
 
 Every change must pass our deterministic Quality Gate:
+
 ```bash
 pnpm run format:check
 pnpm run lint

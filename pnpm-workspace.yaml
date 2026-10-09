@@ -1,0 +1,11 @@
+minimumReleaseAgeExclude:
+  - '@types/node@24.19.2'
+
+allowBuilds:
+  '@parcel/watcher': true
+  '@swc/core': true
+  lefthook: true
+
+auditConfig:
+  ignoreGhsas:
+    - GHSA-vfj7-8cjw-p6xm

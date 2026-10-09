@@ -1,0 +1,14 @@
+{
+  "home": {
+    "title": "Photo CRM",
+    "subtitle": "Autonomous studio management for photographers and videographers",
+    "welcome": "Welcome to your studio dashboard"
+  },
+  "nav": {
+    "home": "Home",
+    "health": "Health Status"
+  },
+  "health": {
+    "status": "System status is {status}"
+  }
+}
