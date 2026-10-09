@@ -11,8 +11,7 @@ This register documents all personal data processed by the application, its lawf
 | `owner.name`, `owner.email`       | Account identification & administration                   | Art. 6(1)(b) Contract / System Operation   | Account lifetime                      | Deleted on instance reset / factory purge; included in Owner Export |
 | `owner.password_hash`             | Authentication security                                   | Art. 6(1)(f) Legitimate Interest / Art. 32 | Account lifetime                      | Overwritten on reset                                                |
 | `owner.mfa_secret`                | Two-factor authentication (encrypted at rest)             | Art. 32 Security of processing             | Account lifetime / until MFA disabled | Purged on disable                                                   |
-| `owner.api_keys.*`                | Programmatic CLI & Agent authentication (hashed at rest)  | Art. 32 Security of processing             | Until revoked                         | Purged on revoke                                                    |
-| `studio_settings.name`            | Business identification (may identify sole trader)        | Art. 6(1)(b)                               | Instance lifetime                     | Exported with settings                                              |
+| `studio_settings.studio_name`     | Business identification (may identify sole trader)        | Art. 6(1)(b)/(f) Operation & Owner Data    | Instance lifetime                     | Exported with settings                                              |
 | `studio_settings.lexware_api_key` | Lexware Office integration secret (AES-256-GCM encrypted) | Art. 6(1)(c) Compliance / Art. 32          | Until integration removed             | Purged on disconnect                                                |
 
 ---

@@ -97,6 +97,10 @@ All contributions must pass the deterministic quality gate:
 | `pnpm run scan:deps`      | Dependency vulnerability audit (`pnpm audit --audit-level high`)               |
 | `pnpm run scan:licenses`  | AGPL-3.0 licence compatibility check                                           |
 | `pnpm run test:e2e`       | Playwright E2E and automated accessibility (`@axe-core/playwright`) tests      |
+| `pnpm run db:generate`    | Generate SQL migrations from schema changes with Drizzle Kit                   |
+| `pnpm run db:migrate`     | Execute pending database migrations with privileged migration role             |
+| `pnpm run db:check`       | Verify migration sequence and detect schema-to-migration drift                 |
+| `pnpm run db:seed:demo`   | Seed deterministic synthetic demo data (with production safety guard)          |
 | `pnpm run services:up`    | Start local development services (PostgreSQL, Mailpit, MinIO)                  |
 | `pnpm run services:down`  | Stop local development services                                                |
 | `pnpm run services:reset` | Stop services and destroy dev data volumes (after warning)                     |
