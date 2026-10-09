@@ -55,14 +55,26 @@ export function checkSchemaDrift(options = {}) {
   }
 
   // 2. Snapshot current migration directory and meta directory
-  const filesBefore = new Set(fs.readdirSync(targetDrizzleDir));
-  const metaFilesBefore = fs.existsSync(targetMetaDir)
-    ? new Set(fs.readdirSync(targetMetaDir))
-    : new Set();
+  let filesBefore = new Set();
+  try {
+    filesBefore = new Set(fs.readdirSync(targetDrizzleDir));
+  } catch {
+    filesBefore = new Set();
+  }
+
+  let metaFilesBefore = new Set();
+  try {
+    metaFilesBefore = new Set(fs.readdirSync(targetMetaDir));
+  } catch {
+    metaFilesBefore = new Set();
+  }
+
   let journalBefore = '';
   const journalPath = path.resolve(targetMetaDir, '_journal.json');
-  if (fs.existsSync(journalPath)) {
+  try {
     journalBefore = fs.readFileSync(journalPath, 'utf8');
+  } catch {
+    journalBefore = '';
   }
 
   const generateArgs = [drizzleKitBin, 'generate'];
@@ -85,22 +97,26 @@ export function checkSchemaDrift(options = {}) {
   }
 
   // Clean up any files created by generate during drift check
-  const filesAfter = fs.readdirSync(targetDrizzleDir);
   let drifted = false;
-  for (const file of filesAfter) {
-    if (!filesBefore.has(file)) {
-      drifted = true;
-      const fullPath = path.resolve(targetDrizzleDir, file);
-      try {
-        fs.rmSync(fullPath, { recursive: true, force: true });
-      } catch {
-        // ignore cleanup error
+  try {
+    const filesAfter = fs.readdirSync(targetDrizzleDir);
+    for (const file of filesAfter) {
+      if (!filesBefore.has(file)) {
+        drifted = true;
+        const fullPath = path.resolve(targetDrizzleDir, file);
+        try {
+          fs.rmSync(fullPath, { recursive: true, force: true });
+        } catch {
+          // ignore cleanup error
+        }
       }
     }
+  } catch {
+    // ignore
   }
 
   // Clean up any new snapshot files created in meta during drift check
-  if (fs.existsSync(targetMetaDir)) {
+  try {
     const metaFilesAfter = fs.readdirSync(targetMetaDir);
     for (const file of metaFilesAfter) {
       if (!metaFilesBefore.has(file)) {
@@ -112,6 +128,8 @@ export function checkSchemaDrift(options = {}) {
         }
       }
     }
+  } catch {
+    // ignore
   }
 
   if (journalBefore) {
