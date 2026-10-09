@@ -23,6 +23,10 @@
     "scan:deps": "pnpm audit --audit-level high",
     "scan:licenses": "node scripts/check-licenses.mjs",
     "test:e2e": "playwright test",
+    "services:up": "docker compose -f compose.dev.yml up -d",
+    "services:down": "docker compose -f compose.dev.yml down",
+    "services:reset": "node scripts/services-reset.mjs",
+    "services:logs": "docker compose -f compose.dev.yml logs -f",
     "prepare": "lefthook install"
   },
   "dependencies": {
