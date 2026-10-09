@@ -225,4 +225,28 @@ describe('AC-3: Server environment validation and secret strength enforcement', 
     const validated = validateServerEnv();
     expect(validated.NODE_ENV).toBe('test');
   });
+
+  it('AC-3: validates database configuration options including SSL and timeouts', () => {
+    const inputWithDbConfig = {
+      ...validServerEnvInput,
+      DATABASE_MIGRATOR_URL: 'postgres://migrator:password@127.0.0.1:5432/photo_crm_dev',
+      DB_MAX_CONNECTIONS: '25',
+      DB_STATEMENT_TIMEOUT: '45',
+      DB_SSL: 'require',
+    };
+
+    const validated = validateServerEnv(inputWithDbConfig);
+    expect(validated.DATABASE_MIGRATOR_URL).toBe(
+      'postgres://migrator:password@127.0.0.1:5432/photo_crm_dev',
+    );
+    expect(validated.DB_MAX_CONNECTIONS).toBe(25);
+    expect(validated.DB_STATEMENT_TIMEOUT).toBe(45);
+    expect(validated.DB_SSL).toBe(true);
+
+    const inputWithSslFalse = {
+      ...validServerEnvInput,
+      DB_SSL: 'false',
+    };
+    expect(validateServerEnv(inputWithSslFalse).DB_SSL).toBe(false);
+  });
 });

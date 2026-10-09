@@ -147,6 +147,18 @@ export const serverSchema = z.object({
       message: 'MIGRATION_DATABASE_URL must be a valid PostgreSQL connection URL.',
     })
     .optional(),
+  DATABASE_MIGRATOR_URL: z
+    .string()
+    .regex(/^postgres(ql)?:\/\/.+/, {
+      message: 'DATABASE_MIGRATOR_URL must be a valid PostgreSQL connection URL.',
+    })
+    .optional(),
+  DB_MAX_CONNECTIONS: z.coerce.number().int().positive().default(10),
+  DB_STATEMENT_TIMEOUT: z.coerce.number().int().positive().default(30),
+  DB_SSL: z
+    .enum(['true', 'false', 'require', 'prefer'])
+    .default('false')
+    .transform((val) => val === 'true' || val === 'require'),
 
   // Local dev credentials & ports (Docker Compose)
   POSTGRES_DB: z.string().default('photo_crm_dev'),
