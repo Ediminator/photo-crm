@@ -61,7 +61,7 @@ describe('AC-4: Gate parity between quality-steps.json and ci.yml', () => {
     const ciContent = fs.readFileSync(ciWorkflowPath, 'utf8');
     expect(ciContent).toContain('services:');
     expect(ciContent).toContain('postgres:');
-    expect(ciContent).toMatch(/image:\s*postgres:16/);
+    expect(ciContent).toMatch(/image:\s*(public\.ecr\.aws\/docker\/library\/)?postgres:16/);
     expect(ciContent).toContain('--health-cmd');
     expect(ciContent).toContain('pg_isready');
   });
