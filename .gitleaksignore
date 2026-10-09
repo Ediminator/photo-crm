@@ -1,0 +1,4 @@
+# Gitleaks ignore list for Photo CRM
+# Test fixture fingerprints from past commits on task branches
+a2e2a594ee9cd3fa28eb9c33bb131f14565c9801:tests/unit/db-client.test.ts:generic-api-key:36
+a2e2a594ee9cd3fa28eb9c33bb131f14565c9801:tests/unit/db-client.test.ts:generic-api-key:42

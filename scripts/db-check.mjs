@@ -6,7 +6,7 @@
  */
 import fs from 'node:fs';
 import path from 'node:path';
-import { execSync } from 'node:child_process';
+import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -27,8 +27,6 @@ export function checkSchemaDrift(options = {}) {
   const targetRootDir = options.rootDir || rootDir;
   const targetDrizzleDir = options.drizzleDir || path.resolve(targetRootDir, 'drizzle');
   const targetMetaDir = path.resolve(targetDrizzleDir, 'meta');
-  const configArg = options.config ? ` --config="${options.config}"` : '';
-
   if (!fs.existsSync(targetDrizzleDir)) {
     return {
       valid: false,
@@ -36,9 +34,15 @@ export function checkSchemaDrift(options = {}) {
     };
   }
 
+  const drizzleKitBin = path.resolve(targetRootDir, 'node_modules/drizzle-kit/bin.cjs');
+  const checkArgs = [drizzleKitBin, 'check'];
+  if (options.config && typeof options.config === 'string') {
+    checkArgs.push(`--config=${options.config}`);
+  }
+
   // 1. Verify migration sequence integrity
   try {
-    execSync(`pnpm exec drizzle-kit check${configArg}`, {
+    execFileSync(process.execPath, checkArgs, {
       cwd: targetRootDir,
       encoding: 'utf8',
       stdio: 'pipe',
@@ -61,9 +65,14 @@ export function checkSchemaDrift(options = {}) {
     journalBefore = fs.readFileSync(journalPath, 'utf8');
   }
 
+  const generateArgs = [drizzleKitBin, 'generate'];
+  if (options.config && typeof options.config === 'string') {
+    generateArgs.push(`--config=${options.config}`);
+  }
+
   let generateOutput = '';
   try {
-    generateOutput = execSync(`pnpm exec drizzle-kit generate${configArg}`, {
+    generateOutput = execFileSync(process.execPath, generateArgs, {
       cwd: targetRootDir,
       encoding: 'utf8',
       stdio: 'pipe',
@@ -105,8 +114,12 @@ export function checkSchemaDrift(options = {}) {
     }
   }
 
-  if (journalBefore && fs.existsSync(journalPath)) {
-    fs.writeFileSync(journalPath, journalBefore, 'utf8');
+  if (journalBefore) {
+    try {
+      fs.writeFileSync(journalPath, journalBefore, 'utf8');
+    } catch {
+      // ignore cleanup error
+    }
   }
 
   if (drifted || !generateOutput.includes('No schema changes, nothing to migrate')) {
