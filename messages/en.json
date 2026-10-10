@@ -229,5 +229,67 @@
         "failedToRegenerate": "Failed to regenerate codes."
       }
     }
+  },
+  "clients": {
+    "list": {
+      "title": "Clients",
+      "description": "Directory of clients and contact history.",
+      "searchLabel": "Search clients",
+      "searchPlaceholder": "Search by name, contact, email, phone, or tag...",
+      "searchButton": "Search",
+      "clearSearch": "Clear search",
+      "tagFilterLabel": "Filter by tag",
+      "allTags": "All tags",
+      "resultsSummary": "{count, plural, =0 {No clients found} =1 {1 client found} other {# clients found}}",
+      "pageSummary": "Page {page} of {totalPages}",
+      "previousPage": "Previous",
+      "nextPage": "Next",
+      "emptyStateTitle": "No clients yet",
+      "emptyStateDescription": "Clients will appear here once they are added.",
+      "noResultsTitle": "No matching clients found",
+      "noResultsDescription": "Try adjusting your search term or tag filter.",
+      "errorMessage": "An error occurred while loading clients. Please try again.",
+      "tableCaption": "Client directory",
+      "columnName": "Name",
+      "columnPrimaryContact": "Primary contact",
+      "columnEmail": "Email",
+      "columnPhone": "Phone",
+      "columnTags": "Tags",
+      "noTags": "—",
+      "noValue": "—",
+      "viewProfile": "View profile for {name}"
+    },
+    "profile": {
+      "title": "Client profile",
+      "backToDirectory": "Back to clients",
+      "kind": {
+        "person": "Person",
+        "company": "Company"
+      },
+      "preferredLanguage": "Preferred language",
+      "language": {
+        "en": "English",
+        "de": "German"
+      },
+      "tags": "Tags",
+      "noTags": "No tags assigned",
+      "contactsTitle": "Contacts",
+      "primaryBadge": "Primary contact",
+      "noContacts": "No contacts recorded",
+      "emailLabel": "Email",
+      "phoneLabel": "Phone",
+      "addressesTitle": "Addresses",
+      "addressType": {
+        "postal": "Postal address",
+        "billing": "Billing address"
+      },
+      "noAddresses": "No addresses recorded",
+      "activityTitle": "Activity & Timestamps",
+      "createdAt": "Created",
+      "lastActivityAt": "Last activity",
+      "notFoundTitle": "Client not found",
+      "notFoundDescription": "The requested client does not exist or may have been deleted.",
+      "errorMessage": "An error occurred while loading the client profile."
+    }
   }
 }

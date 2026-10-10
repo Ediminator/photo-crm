@@ -31,14 +31,65 @@ vi.mock('next/navigation', () => ({
   permanentRedirect: vi.fn(),
 }));
 
+import ClientProfilePage from '@/app/[locale]/clients/[clientId]/page';
+
+vi.mock('@/server/auth/guards', () => ({
+  requireOwner: vi.fn().mockResolvedValue({ user: { id: 'owner-1', role: 'owner' } }),
+}));
+
+vi.mock('@/server/clients/service', () => ({
+  getClientList: vi.fn().mockResolvedValue({
+    success: true,
+    data: { items: [], total: 0, page: 1, pageSize: 25 },
+  }),
+  listTags: vi.fn().mockResolvedValue({
+    success: true,
+    data: [],
+  }),
+  getClient: vi.fn().mockResolvedValue({
+    success: true,
+    data: {
+      client: {
+        id: '018f0000-0000-7000-8000-000000000001',
+        kind: 'person',
+        displayName: 'Test Client',
+        preferredLocale: 'en',
+        createdAt: new Date(),
+        lastActivityAt: new Date(),
+        updatedAt: new Date(),
+      },
+      contacts: [],
+      addresses: [],
+      tags: [],
+    },
+  }),
+}));
+
+vi.mock('@/server/settings/repo', () => ({
+  getStudioSettings: vi.fn().mockResolvedValue({ timezone: 'UTC' }),
+}));
+
 describe('App placeholder and auth pages', () => {
   it('renders LeadsPage component', () => {
     const el = LeadsPage();
     expect(React.isValidElement(el)).toBe(true);
   });
 
-  it('renders ClientsPage component', () => {
-    const el = ClientsPage();
+  it('renders ClientsPage component', async () => {
+    const el = await ClientsPage({
+      params: Promise.resolve({ locale: 'en' }),
+      searchParams: Promise.resolve({}),
+    });
+    expect(React.isValidElement(el)).toBe(true);
+  });
+
+  it('renders ClientProfilePage component', async () => {
+    const el = await ClientProfilePage({
+      params: Promise.resolve({
+        locale: 'en',
+        clientId: '018f0000-0000-7000-8000-000000000001',
+      }),
+    });
     expect(React.isValidElement(el)).toBe(true);
   });
 
