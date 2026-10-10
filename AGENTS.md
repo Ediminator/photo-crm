@@ -1,4 +1,4 @@
-# AGENTS.md: Photo CRM engineering rules
+# AGENTS.md: Ownlight engineering rules
 
 Guidance for AI coding agents and human contributors working in this repository. If you are an agent inside the MAS workspace, the workspace constitution (`../../AGENTS.md`) applies as well. These rules add to it and never relax it.
 

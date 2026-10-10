@@ -5,7 +5,7 @@
 ## Linked Task / Contract
 
 - Task: `TASK-####`
-- Contract: `control/photo-crm/backlog/TASK-####-slug.md`
+- Contract: `control/ownlight/backlog/TASK-####-slug.md`
 
 ## Acceptance Criteria & Test Evidence
 

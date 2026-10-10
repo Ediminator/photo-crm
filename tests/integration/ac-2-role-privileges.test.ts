@@ -21,7 +21,7 @@ describe('AC-2: Migration and runtime role privilege boundaries', () => {
     // Proves migrations script uses migration role and separate connection URL
     expect(migrateContent).toContain('DATABASE_MIGRATOR_URL');
     expect(migrateContent).toContain('MIGRATION_DATABASE_URL');
-    expect(migrateContent).toContain('photo_crm_migrator');
+    expect(migrateContent).toContain('ownlight_migrator');
 
     // Separate script exists and is executable
     expect(fs.existsSync(migrateScript)).toBe(true);
@@ -33,12 +33,12 @@ describe('AC-2: Migration and runtime role privilege boundaries', () => {
 
     // Revoke CREATE rights on schema public from application role
     expect(shContent).toContain('REVOKE CREATE ON SCHEMA public FROM "${POSTGRES_APP_USER}";');
-    expect(sqlContent).toContain('REVOKE CREATE ON SCHEMA public FROM photo_crm_app;');
+    expect(sqlContent).toContain('REVOKE CREATE ON SCHEMA public FROM ownlight_app;');
 
-    // Only photo_crm_migrator owns schema public and has CREATE rights
+    // Only ownlight_migrator owns schema public and has CREATE rights
     expect(shContent).toContain('ALTER SCHEMA public OWNER TO "${POSTGRES_MIGRATOR_USER}";');
-    expect(sqlContent).toContain('ALTER SCHEMA public OWNER TO photo_crm_migrator;');
-    expect(sqlContent).toContain('GRANT USAGE, CREATE ON SCHEMA public TO photo_crm_migrator;');
+    expect(sqlContent).toContain('ALTER SCHEMA public OWNER TO ownlight_migrator;');
+    expect(sqlContent).toContain('GRANT USAGE, CREATE ON SCHEMA public TO ownlight_migrator;');
   });
 
   it('AC-2: integration test proves application role cannot ALTER or DROP tables in database engine', async () => {
@@ -46,14 +46,14 @@ describe('AC-2: Migration and runtime role privilege boundaries', () => {
     try {
       // 1. Establish PostgreSQL role boundaries identical to infra/postgres/init-roles.sql
       await client.exec(`
-        CREATE ROLE photo_crm_migrator;
-        CREATE ROLE photo_crm_app;
+        CREATE ROLE ownlight_migrator;
+        CREATE ROLE ownlight_app;
 
-        ALTER SCHEMA public OWNER TO photo_crm_migrator;
+        ALTER SCHEMA public OWNER TO ownlight_migrator;
         REVOKE CREATE ON SCHEMA public FROM PUBLIC;
-        REVOKE CREATE ON SCHEMA public FROM photo_crm_app;
-        GRANT USAGE, CREATE ON SCHEMA public TO photo_crm_migrator;
-        GRANT USAGE ON SCHEMA public TO photo_crm_app;
+        REVOKE CREATE ON SCHEMA public FROM ownlight_app;
+        GRANT USAGE, CREATE ON SCHEMA public TO ownlight_migrator;
+        GRANT USAGE ON SCHEMA public TO ownlight_app;
       `);
 
       // 2. Run schema migrations under migrator role ownership
@@ -61,14 +61,14 @@ describe('AC-2: Migration and runtime role privilege boundaries', () => {
       await migrate(db, { migrationsFolder: drizzleDir });
 
       await client.exec(`
-        ALTER TABLE studio_settings OWNER TO photo_crm_migrator;
-        GRANT SELECT, INSERT, UPDATE, DELETE ON studio_settings TO photo_crm_app;
+        ALTER TABLE studio_settings OWNER TO ownlight_migrator;
+        GRANT SELECT, INSERT, UPDATE, DELETE ON studio_settings TO ownlight_app;
       `);
 
-      // 3. Switch active PostgreSQL session role to photo_crm_app
-      await client.exec('SET ROLE photo_crm_app;');
+      // 3. Switch active PostgreSQL session role to ownlight_app
+      await client.exec('SET ROLE ownlight_app;');
 
-      // 4. Verify DML operations are allowed under photo_crm_app
+      // 4. Verify DML operations are allowed under ownlight_app
       await client.query(
         "INSERT INTO studio_settings (id, studio_name, default_locale, timezone, currency, created_at, updated_at) VALUES ('01912345-6789-7abc-8def-0123456789ab', 'Role Studio', 'en', 'UTC', 'EUR', NOW(), NOW())",
       );

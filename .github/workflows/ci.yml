@@ -23,8 +23,8 @@ jobs:
       postgres:
         image: public.ecr.aws/docker/library/postgres:16.8-alpine3.21
         env:
-          POSTGRES_DB: photo_crm_test
-          POSTGRES_USER: photo_crm_app
+          POSTGRES_DB: ownlight_test
+          POSTGRES_USER: ownlight_app
           POSTGRES_PASSWORD: changeme
         ports:
           - 5432:5432
@@ -36,8 +36,8 @@ jobs:
     env:
       CI: 'true'
       NODE_ENV: test
-      POSTGRES_DB: photo_crm_test
-      POSTGRES_USER: photo_crm_app
+      POSTGRES_DB: ownlight_test
+      POSTGRES_USER: ownlight_app
       POSTGRES_PASSWORD: changeme
       SKIP_ENV_VALIDATION: 'true'
     steps:

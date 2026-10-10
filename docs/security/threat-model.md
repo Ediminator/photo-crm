@@ -1,4 +1,4 @@
-# Threat Model: Photo CRM
+# Threat Model: Ownlight
 
 This threat model identifies key assets, trust boundaries, threat actors, and STRIDE mitigations for the single-studio self-hosted CRM system.
 
@@ -14,7 +14,7 @@ This threat model identifies key assets, trust boundaries, threat actors, and ST
 | **A-4**  | Studio Owner Credentials        | Admin password hashes, TOTP secrets, WebAuthn credentials, session tokens                        | Critical         |
 | **A-5**  | Third-Party Integration Secrets | SMTP passwords, Google OAuth refresh tokens, CalDAV credentials, S3 API keys, Lexware API tokens | Critical         |
 | **A-6**  | Invoices & Accounting Records   | Financial vouchers subject to GoBD / §14 UStG, sealed in Lexware and referenced in CRM           | High             |
-| **A-7**  | Scoped Agent API Tokens         | Bearer keys (`pcrm_live_...`) authorizing CLI automation and MCP agent tools                     | Critical         |
+| **A-7**  | Scoped Agent API Tokens         | Bearer keys (`ownlight_live_...`) authorizing CLI automation and MCP agent tools                 | Critical         |
 
 ---
 

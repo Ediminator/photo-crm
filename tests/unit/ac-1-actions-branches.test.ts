@@ -100,15 +100,15 @@ vi.mock('@/server/auth/session', () => ({
     return Promise.resolve(null);
   }),
   getSessionCookieAttributes: vi.fn(() => ({
-    name: 'photo_crm_session',
+    name: 'ownlight_session',
     httpOnly: true,
     secure: false,
     sameSite: 'lax',
     path: '/',
     maxAge: 86400,
   })),
-  SESSION_COOKIE_NAME: 'photo_crm_session',
-  SECURE_SESSION_COOKIE_NAME: '__Secure-photo_crm_session',
+  SESSION_COOKIE_NAME: 'ownlight_session',
+  SECURE_SESSION_COOKIE_NAME: '__Secure-ownlight_session',
 }));
 
 vi.mock('@/server/auth/guards', () => ({
@@ -452,17 +452,17 @@ describe('Auth Server Actions Branch Coverage', () => {
 
   describe('signOutAction branches', () => {
     it('revokes session using SECURE_SESSION_COOKIE_NAME when present', async () => {
-      mockCookiesStore.set('__Secure-photo_crm_session', 'valid-token');
+      mockCookiesStore.set('__Secure-ownlight_session', 'valid-token');
       const res = await signOutAction();
       expect(res.success).toBe(true);
-      expect(mockCookiesStore.has('__Secure-photo_crm_session')).toBe(false);
+      expect(mockCookiesStore.has('__Secure-ownlight_session')).toBe(false);
     });
 
     it('revokes session using SESSION_COOKIE_NAME when present', async () => {
-      mockCookiesStore.set('photo_crm_session', 'valid-token');
+      mockCookiesStore.set('ownlight_session', 'valid-token');
       const res = await signOutAction();
       expect(res.success).toBe(true);
-      expect(mockCookiesStore.has('photo_crm_session')).toBe(false);
+      expect(mockCookiesStore.has('ownlight_session')).toBe(false);
     });
 
     it('handles sign out cleanly when no session cookie is present', async () => {
@@ -479,10 +479,10 @@ describe('Auth Server Actions Branch Coverage', () => {
 
   describe('signOutEverywhereAction', () => {
     it('calls signOutEverywhere and clears cookies', async () => {
-      mockCookiesStore.set('photo_crm_session', 'valid-token');
+      mockCookiesStore.set('ownlight_session', 'valid-token');
       const res = await signOutEverywhereAction();
       expect(res.success).toBe(true);
-      expect(mockCookiesStore.has('photo_crm_session')).toBe(false);
+      expect(mockCookiesStore.has('ownlight_session')).toBe(false);
     });
   });
 

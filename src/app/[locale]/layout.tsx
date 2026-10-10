@@ -3,8 +3,8 @@ import type { ReactNode } from 'react';
 import { notFound, redirect } from 'next/navigation';
 import { hasLocale, NextIntlClientProvider } from 'next-intl';
 
-const SESSION_COOKIE_NAME = 'photo_crm_session';
-const SECURE_SESSION_COOKIE_NAME = '__Secure-photo_crm_session';
+const SESSION_COOKIE_NAME = 'ownlight_session';
+const SECURE_SESSION_COOKIE_NAME = '__Secure-ownlight_session';
 import { routing } from '@/i18n/routing';
 import { geistSans, geistMono } from '@/app/fonts';
 import { ThemeProvider } from '@/components/theme/theme-provider';
@@ -89,6 +89,7 @@ export default async function LocaleLayout({ children, params }: LocaleLayoutPro
         <meta charSet="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <title>{messages.home.title}</title>
+        <meta name="description" content={messages.home.subtitle} />
       </head>
       <body className="min-h-screen bg-background font-sans text-foreground antialiased">
         <NextIntlClientProvider locale={locale} messages={messages}>

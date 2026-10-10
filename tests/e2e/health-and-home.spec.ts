@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
 
 const TEST_AUTH_COOKIE = {
-  name: 'photo_crm_session',
+  name: 'ownlight_session',
   value: 'e2e-session-valid-token',
   url: 'http://localhost:3000',
 };
@@ -38,7 +38,7 @@ test.describe('E2E: Health Endpoint and Bilingual Home Pages', () => {
 
     // Check localized heading
     const heading = page.locator('h1');
-    await expect(heading).toHaveText('Photo CRM');
+    await expect(heading).toHaveText('Ownlight');
 
     // Run axe accessibility audit
     const accessibilityScanResults = await new AxeBuilder({ page })
@@ -62,7 +62,7 @@ test.describe('E2E: Health Endpoint and Bilingual Home Pages', () => {
 
     // Check localized heading
     const heading = page.locator('h1');
-    await expect(heading).toHaveText('Photo CRM');
+    await expect(heading).toHaveText('Ownlight');
 
     // Run axe accessibility audit
     const accessibilityScanResults = await new AxeBuilder({ page })

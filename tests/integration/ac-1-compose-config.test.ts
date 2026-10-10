@@ -83,9 +83,9 @@ describe('AC-1: Docker Compose dev configuration security and integrity', () => 
     expect(content).toContain('postgres_data:');
     expect(content).toContain('mailpit_data:');
     expect(content).toContain('minio_data:');
-    expect(content).toContain('photo_crm_postgres_data');
-    expect(content).toContain('photo_crm_mailpit_data');
-    expect(content).toContain('photo_crm_minio_data');
+    expect(content).toContain('ownlight_postgres_data');
+    expect(content).toContain('ownlight_mailpit_data');
+    expect(content).toContain('ownlight_minio_data');
   });
 
   it('AC-1: docker compose config executes cleanly when docker is available', () => {

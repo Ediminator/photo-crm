@@ -4,8 +4,8 @@ import { routing } from './i18n/routing';
 
 const intlMiddleware = createIntlMiddleware(routing);
 
-export const SECURE_SESSION_COOKIE = '__Secure-photo_crm_session';
-export const STANDARD_SESSION_COOKIE = 'photo_crm_session';
+export const SECURE_SESSION_COOKIE = '__Secure-ownlight_session';
+export const STANDARD_SESSION_COOKIE = 'ownlight_session';
 export const BETTER_AUTH_SECURE_COOKIE = '__Secure-better-auth.session_token';
 export const BETTER_AUTH_COOKIE = 'better-auth.session_token';
 

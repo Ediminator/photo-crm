@@ -1,6 +1,6 @@
 # Local Development Environment Guide
 
-This guide describes how to configure, run, and troubleshoot the local development environment for Photo CRM.
+This guide describes how to configure, run, and troubleshoot the local development environment for Ownlight.
 
 ---
 
@@ -20,8 +20,8 @@ Before starting, ensure your host system has the following software installed:
 ### Step 1: Clone Repository & Install Dependencies
 
 ```bash
-git clone <repo-url> photo-crm
-cd photo-crm
+git clone <repo-url> ownlight
+cd ownlight
 pnpm install --frozen-lockfile
 ```
 
@@ -57,7 +57,7 @@ Edit `.env` and set:
 
 ## 3. Starting Development Services
 
-Photo CRM uses Docker Compose (`compose.dev.yml`) to orchestrate three containerized services:
+Ownlight uses Docker Compose (`compose.dev.yml`) to orchestrate three containerized services:
 
 1. **PostgreSQL 16:** Relational database with least-privilege role separation.
 2. **Mailpit:** Local SMTP catch-all server with an embedded web mailbox.
@@ -100,11 +100,11 @@ All dev services are strictly bound to `127.0.0.1` (localhost) to prevent accide
 
 During container initialization (`infra/postgres/init-roles.sh`), the database sets up strict role boundaries:
 
-1. **Application Role (`photo_crm_app`):**
+1. **Application Role (`ownlight_app`):**
    - Used by the Next.js runtime application via `DATABASE_URL`.
    - Granted DML permissions (`SELECT`, `INSERT`, `UPDATE`, `DELETE`) on application tables.
    - **Explicitly denied DDL:** Cannot `CREATE TABLE`, `ALTER TABLE`, or `DROP TABLE` in schema `public`.
-2. **Migration Role (`photo_crm_migrator`):**
+2. **Migration Role (`ownlight_migrator`):**
    - Used exclusively by Drizzle Kit migrations via `MIGRATION_DATABASE_URL`.
    - Owns schema `public` and has DDL creation rights.
 3. **Superuser (`postgres`):**
@@ -142,7 +142,7 @@ Manage your containers using the following pnpm scripts:
 
 Many photographers maintain a home lab or Synology DiskStation NAS (via Container Manager or Docker package) to centralize storage and database backups.
 
-You can configure Photo CRM to connect directly to services running on your Synology NAS instead of running local Docker containers on your workstation:
+You can configure Ownlight to connect directly to services running on your Synology NAS instead of running local Docker containers on your workstation:
 
 ### Step 1: Create `.env.local`
 
@@ -158,8 +158,8 @@ Replace `127.0.0.1` with your NAS LAN IP (e.g., `192.168.1.150`):
 
 ```bash
 # Database on Synology NAS
-DATABASE_URL=postgres://photo_crm_app:password@192.168.1.150:5432/photo_crm_dev
-MIGRATION_DATABASE_URL=postgres://photo_crm_migrator:password@192.168.1.150:5432/photo_crm_dev
+DATABASE_URL=postgres://ownlight_app:password@192.168.1.150:5432/ownlight_dev
+MIGRATION_DATABASE_URL=postgres://ownlight_migrator:password@192.168.1.150:5432/ownlight_dev
 
 # MinIO / S3 on Synology NAS
 STORAGE_ENDPOINT=http://192.168.1.150:9000

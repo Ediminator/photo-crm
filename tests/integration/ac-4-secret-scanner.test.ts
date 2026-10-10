@@ -45,7 +45,7 @@ describe('AC-4: Secret scanner (secretlint) detection in isolated directory', ()
     const tempFile = path.join(tempDir, 'clean-config.env');
 
     try {
-      fs.writeFileSync(tempFile, 'APP_ENV=test\nAPP_NAME=photo-crm\n', 'utf8');
+      fs.writeFileSync(tempFile, 'APP_ENV=test\nAPP_NAME=ownlight\n', 'utf8');
 
       const result = spawnSync(
         'pnpm',

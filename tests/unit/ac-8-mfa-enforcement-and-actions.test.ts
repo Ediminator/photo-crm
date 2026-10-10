@@ -599,7 +599,7 @@ describe('AC-5: WebAuthn verification error cases and cryptographic checks', () 
       { id: 'user-123', email: 'test@example.com', name: 'Test User' },
       'challenge-123',
     );
-    expect(regOptions1.rp.name).toBe('Photo CRM');
+    expect(regOptions1.rp.name).toBe('Ownlight');
     expect(regOptions1.challenge).toBe('challenge-123');
 
     const regOptions2 = createRegistrationOptions(

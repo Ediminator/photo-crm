@@ -64,10 +64,10 @@ describe('AC-1 & AC-2: TOTP and Recovery Codes Cryptography and Replay Logic', (
 
   it('AC-1: formats standard otpauth URI and renders purely self-hosted vector SVG QR code', () => {
     const secret = 'JBSWY3DPEHPK3PXP';
-    const uri = getOtpauthUri(secret, 'owner@example.com', 'Photo CRM');
-    expect(uri).toContain('otpauth://totp/Photo%20CRM:owner%40example.com');
+    const uri = getOtpauthUri(secret, 'owner@example.com', 'Ownlight');
+    expect(uri).toContain('otpauth://totp/Ownlight:owner%40example.com');
     expect(uri).toContain(`secret=${secret}`);
-    expect(uri).toContain('issuer=Photo%20CRM');
+    expect(uri).toContain('issuer=Ownlight');
 
     const svg = generateTotpQrSvg(uri);
     expect(svg).toMatch(/^<svg/);

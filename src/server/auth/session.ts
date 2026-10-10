@@ -3,8 +3,8 @@ import { eq, and, gt } from 'drizzle-orm';
 import { db as defaultDb, type DbClient } from '@/server/db/client';
 import { session, user, type User, type Session } from '@/server/db/schema/auth';
 
-export const SESSION_COOKIE_NAME = 'photo_crm_session';
-export const SECURE_SESSION_COOKIE_NAME = '__Secure-photo_crm_session';
+export const SESSION_COOKIE_NAME = 'ownlight_session';
+export const SECURE_SESSION_COOKIE_NAME = '__Secure-ownlight_session';
 
 export const SESSION_MAX_AGE_SECONDS = 30 * 24 * 60 * 60; // 30 days
 export const SESSION_IDLE_TIMEOUT_SECONDS = 7 * 24 * 60 * 60; // 7 days

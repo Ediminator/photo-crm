@@ -9,7 +9,7 @@ export default defineConfig({
       process.env.MIGRATION_DATABASE_URL ||
       process.env.DATABASE_MIGRATOR_URL ||
       process.env.DATABASE_URL ||
-      'postgres://photo_crm_migrator:password@127.0.0.1:5432/photo_crm_dev',
+      'postgres://ownlight_migrator:password@127.0.0.1:5432/ownlight_dev',
   },
   strict: true,
   verbose: true,

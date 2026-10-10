@@ -289,7 +289,7 @@ export async function startTotpEnrolmentAction(
     });
   }
 
-  const otpauthUri = getOtpauthUri(secret, context.user.email, 'Photo CRM');
+  const otpauthUri = getOtpauthUri(secret, context.user.email, 'Ownlight');
   const qrSvg = generateTotpQrSvg(otpauthUri);
 
   return {
