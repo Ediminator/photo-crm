@@ -28,3 +28,7 @@ Use these terms consistently in code, UI strings and docs. The UX reviewer check
 | Accounting connector | Accounting connector  | Buchhaltungs-Schnittstelle     | `accountingProvider` | Provider interface for external accounting platforms                       |
 | Invoice              | Invoice               | Rechnung                       | `invoice`            | Legally sealed accounting voucher created via connector                    |
 | Down payment         | Down payment          | Anzahlung                      | `downPayment`        | Upfront deposit invoice (_Anzahlungsrechnung_)                             |
+| Address              | Address               | Adresse                        | `address`            | Physical postal or billing location of a client                            |
+| Preferred language   | Preferred language    | Bevorzugte Sprache             | `preferredLocale`    | Language used for communication and generated documents                    |
+| Possible duplicate   | Possible duplicate    | Mögliches Duplikat             | `duplicateEmail`     | Warning when a contact email is already registered to another client       |
+| Primary contact      | Primary contact       | Hauptkontakt                   | `primaryContact`     | The designated main person representing a client for communication         |
