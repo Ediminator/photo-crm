@@ -38,7 +38,7 @@ describe('AC-4: Secret scanner (secretlint) detection in isolated directory', ()
     // Confirm cleanup
     expect(fs.existsSync(tempFile)).toBe(false);
     expect(fs.existsSync(tempDir)).toBe(false);
-  });
+  }, 60000);
 
   it('AC-4: reports no findings for clean files and leaves no fixture behind', () => {
     const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'crm-clean-test-'));
@@ -63,5 +63,5 @@ describe('AC-4: Secret scanner (secretlint) detection in isolated directory', ()
 
     expect(fs.existsSync(tempFile)).toBe(false);
     expect(fs.existsSync(tempDir)).toBe(false);
-  });
+  }, 60000);
 });

@@ -8,6 +8,8 @@ import {
   revokeApiKey,
   verifyApiKey,
   API_KEY_PREFIX,
+  BEARER_TOKEN_PREFIX,
+  hashBearerToken,
   hashApiKeyToken,
 } from '@/server/auth/api-keys';
 import { requireAuth, UnauthorizedError, ForbiddenError } from '@/server/auth/guards';
@@ -263,11 +265,13 @@ describe('AC-11: API key authentication, scope enforcement, and revocation', () 
     expect(adminContext.user.id).toBe(owner.id);
   });
 
-  it('AC-11: hashApiKeyToken computes deterministic SHA-256 hash of high-entropy token', () => {
+  it('AC-11: hashBearerToken computes deterministic SHA-256 hash of high-entropy token', () => {
     const raw = 'pcrm_live_0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
-    const hash = hashApiKeyToken(raw);
+    const hash = hashBearerToken(raw);
     expect(hash).toBeDefined();
     expect(hash).toHaveLength(64);
+    expect(hashBearerToken(raw)).toBe(hash);
     expect(hashApiKeyToken(raw)).toBe(hash);
+    expect(BEARER_TOKEN_PREFIX).toBe('pcrm_live_');
   });
 });

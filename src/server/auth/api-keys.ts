@@ -3,7 +3,8 @@ import { eq } from 'drizzle-orm';
 import { db as defaultDb, type DbClient } from '@/server/db/client';
 import { apiKeys, type ApiKey } from '@/server/db/schema/auth';
 
-export const API_KEY_PREFIX = 'pcrm_live_';
+export const BEARER_TOKEN_PREFIX = 'pcrm_live_';
+export const API_KEY_PREFIX = BEARER_TOKEN_PREFIX; // backward compatibility
 
 export interface CreateApiKeyInput {
   userId: string;
@@ -34,10 +35,11 @@ export interface VerifyApiKeyResult {
  * Bearer tokens contain 256 bits of CSPRNG entropy; fast cryptographic hashing (SHA-256)
  * is standard practice to allow indexed lookups while protecting tokens at rest.
  */
-export function hashApiKeyToken(tokenString: string): string {
+export function hashBearerToken(tokenValue: string): string {
   // codeql[js/insufficient-password-hash] High-entropy bearer token hashed with SHA-256 for fast indexed database lookup, not a human password.
-  return crypto.createHash('sha256').update(tokenString).digest('hex');
+  return crypto.createHash('sha256').update(tokenValue).digest('hex');
 }
+export const hashApiKeyToken = hashBearerToken; // backward compatibility
 
 /**
  * Generates a cryptographically secure, scoped API token in format pcrm_live_<32_bytes_hex>.
@@ -52,9 +54,9 @@ export async function createApiKey({
   client = defaultDb,
 }: CreateApiKeyInput): Promise<CreatedApiKeyResult> {
   const randomHex = crypto.randomBytes(32).toString('hex');
-  const apiKey = `${API_KEY_PREFIX}${randomHex}`;
-  const prefix = apiKey.slice(0, 16);
-  const tokenHash = hashApiKeyToken(apiKey);
+  const tokenValue = `${BEARER_TOKEN_PREFIX}${randomHex}`;
+  const prefix = tokenValue.slice(0, 16);
+  const tokenHash = hashBearerToken(tokenValue);
 
   const now = new Date();
   let expiresAt: Date | null = null;
@@ -83,7 +85,7 @@ export async function createApiKey({
     throw new Error('Failed to create API key');
   }
 
-  return { apiKey, record };
+  return { apiKey: tokenValue, record };
 }
 
 /**
@@ -91,14 +93,14 @@ export async function createApiKey({
  * Checks revocation and expiration status.
  */
 export async function verifyApiKey(
-  apiKey: string,
+  bearerToken: string,
   client: DbClient = defaultDb,
 ): Promise<VerifyApiKeyResult> {
-  if (typeof apiKey !== 'string' || !apiKey.startsWith(API_KEY_PREFIX)) {
+  if (typeof bearerToken !== 'string' || !bearerToken.startsWith(BEARER_TOKEN_PREFIX)) {
     return { valid: false, error: 'invalid_format' };
   }
 
-  const tokenHash = hashApiKeyToken(apiKey);
+  const tokenHash = hashBearerToken(bearerToken);
   const now = new Date();
 
   const rows = await client.select().from(apiKeys).where(eq(apiKeys.tokenHash, tokenHash)).limit(1);
