@@ -1,13 +1,27 @@
 /**
- * Explicit allowlist of server actions that do not require an active owner session (AC-9).
+ * Explicit allowlist of server actions that do not require an active owner session (AC-9 / TASK-0018).
  * Maintained in a separate module because 'use server' files can only export async functions.
+ * Every entry MUST carry a justification comment naming its compensating control.
  */
 export const PUBLIC_AUTH_ACTIONS = [
+  // Compensating control: One-time setup only; fails permanently if an owner exists; rate-limited.
   'setupOwnerAction',
+  // Compensating control: Rate-limited per IP and email; requires valid password credentials; returns MFA ticket if 2FA enabled.
   'signInAction',
+  // Compensating control: Clears active session cookie; safe no-op if unauthenticated.
   'signOutAction',
+  // Compensating control: Rate-limited per IP and email; timing-safe (always returns success); sends out-of-band email token.
   'requestPasswordResetAction',
+  // Compensating control: Requires unexpired single-use reset token from email; rate-limited.
   'resetPasswordAction',
+  // Compensating control: Requires valid unexpired MFA ticket; rate-limited per email and IP.
+  'verifyMfaTotpAction',
+  // Compensating control: Requires valid unexpired MFA ticket; rate-limited per email and IP; single-use code.
+  'verifyMfaRecoveryCodeAction',
+  // Compensating control: Generates unguessable WebAuthn challenge with 5-minute expiry in verification table.
+  'startPasskeyAuthenticationAction',
+  // Compensating control: Validates WebAuthn signature against unexpired challenge; single-use challenge consumption; rate-limited.
+  'completePasskeyAuthenticationAction',
 ] as const;
 
 export type PublicAuthAction = (typeof PUBLIC_AUTH_ACTIONS)[number];
