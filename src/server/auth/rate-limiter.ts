@@ -99,51 +99,52 @@ export async function checkRateLimit(
   windowMs: number,
   client: DbClient = defaultDb,
 ): Promise<RateLimitCheckResult> {
-  // Prune expired records during check to ensure database retention <= 24h
-  void cleanupExpiredRateLimits(client);
-
   const now = new Date();
-  const rows = await client.select().from(rateLimits).where(eq(rateLimits.key, key)).limit(1);
+  try {
+    // Prune expired records during check to ensure database retention <= 24h
+    void cleanupExpiredRateLimits(client);
 
-  if (rows.length === 0) {
+    const rows = await client.select().from(rateLimits).where(eq(rateLimits.key, key)).limit(1);
+
+    if (rows.length === 0 || !rows[0]) {
+      return {
+        allowed: true,
+        remaining: maxAttempts,
+        resetAt: new Date(now.getTime() + windowMs),
+      };
+    }
+
+    const record = rows[0];
+
+    // If expired, the window has reset
+    if (record.expiresAt.getTime() <= now.getTime()) {
+      return {
+        allowed: true,
+        remaining: maxAttempts,
+        resetAt: new Date(now.getTime() + windowMs),
+      };
+    }
+
+    if (record.count >= maxAttempts) {
+      return {
+        allowed: false,
+        remaining: 0,
+        resetAt: record.expiresAt,
+      };
+    }
+
     return {
       allowed: true,
-      remaining: maxAttempts,
-      resetAt: new Date(now.getTime() + windowMs),
-    };
-  }
-
-  const record = rows[0];
-  if (!record) {
-    return {
-      allowed: true,
-      remaining: maxAttempts,
-      resetAt: new Date(now.getTime() + windowMs),
-    };
-  }
-
-  // If expired, the window has reset
-  if (record.expiresAt.getTime() <= now.getTime()) {
-    return {
-      allowed: true,
-      remaining: maxAttempts,
-      resetAt: new Date(now.getTime() + windowMs),
-    };
-  }
-
-  if (record.count >= maxAttempts) {
-    return {
-      allowed: false,
-      remaining: 0,
+      remaining: Math.max(0, maxAttempts - record.count),
       resetAt: record.expiresAt,
     };
+  } catch {
+    return {
+      allowed: true,
+      remaining: maxAttempts,
+      resetAt: new Date(now.getTime() + windowMs),
+    };
   }
-
-  return {
-    allowed: true,
-    remaining: Math.max(0, maxAttempts - record.count),
-    resetAt: record.expiresAt,
-  };
 }
 
 /**
@@ -154,39 +155,43 @@ export async function recordFailedAttempt(
   windowMs: number,
   client: DbClient = defaultDb,
 ): Promise<void> {
-  const now = new Date();
-  const rows = await client.select().from(rateLimits).where(eq(rateLimits.key, key)).limit(1);
+  try {
+    const now = new Date();
+    const rows = await client.select().from(rateLimits).where(eq(rateLimits.key, key)).limit(1);
 
-  if (rows.length === 0 || !rows[0]) {
-    await client.insert(rateLimits).values({
-      key,
-      count: 1,
-      lastAttemptAt: now,
-      expiresAt: new Date(now.getTime() + windowMs),
-    });
-    return;
-  }
-
-  const record = rows[0];
-  if (record.expiresAt.getTime() <= now.getTime()) {
-    // Reset window
-    await client
-      .update(rateLimits)
-      .set({
+    if (rows.length === 0 || !rows[0]) {
+      await client.insert(rateLimits).values({
+        key,
         count: 1,
         lastAttemptAt: now,
         expiresAt: new Date(now.getTime() + windowMs),
-      })
-      .where(eq(rateLimits.key, key));
-  } else {
-    // Increment existing count
-    await client
-      .update(rateLimits)
-      .set({
-        count: record.count + 1,
-        lastAttemptAt: now,
-      })
-      .where(eq(rateLimits.key, key));
+      });
+      return;
+    }
+
+    const record = rows[0];
+    if (record.expiresAt.getTime() <= now.getTime()) {
+      // Reset window
+      await client
+        .update(rateLimits)
+        .set({
+          count: 1,
+          lastAttemptAt: now,
+          expiresAt: new Date(now.getTime() + windowMs),
+        })
+        .where(eq(rateLimits.key, key));
+    } else {
+      // Increment existing count
+      await client
+        .update(rateLimits)
+        .set({
+          count: record.count + 1,
+          lastAttemptAt: now,
+        })
+        .where(eq(rateLimits.key, key));
+    }
+  } catch {
+    // Fail gracefully if DB is offline or not configured
   }
 }
 
@@ -194,7 +199,11 @@ export async function recordFailedAttempt(
  * Resets the rate limit counter for a key (e.g. after successful authentication).
  */
 export async function resetRateLimit(key: string, client: DbClient = defaultDb): Promise<void> {
-  await client.delete(rateLimits).where(eq(rateLimits.key, key));
+  try {
+    await client.delete(rateLimits).where(eq(rateLimits.key, key));
+  } catch {
+    // Fail gracefully if DB is offline or not configured
+  }
 }
 
 /**
