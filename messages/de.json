@@ -229,5 +229,67 @@
         "failedToRegenerate": "Wiederherstellungscodes konnten nicht neu generiert werden."
       }
     }
+  },
+  "clients": {
+    "list": {
+      "title": "Kund:innen",
+      "description": "Verzeichnis der Kund:innen und Kontakthistorie.",
+      "searchLabel": "Kund:innen durchsuchen",
+      "searchPlaceholder": "Nach Name, Kontakt, E-Mail, Telefon oder Schlagwort suchen...",
+      "searchButton": "Suchen",
+      "clearSearch": "Suche zurücksetzen",
+      "tagFilterLabel": "Nach Schlagwort filtern",
+      "allTags": "Alle Schlagwörter",
+      "resultsSummary": "{count, plural, =0 {Keine Kund:innen gefunden} =1 {1 Kund:in gefunden} other {# Kund:innen gefunden}}",
+      "pageSummary": "Seite {page} von {totalPages}",
+      "previousPage": "Zurück",
+      "nextPage": "Weiter",
+      "emptyStateTitle": "Noch keine Kund:innen",
+      "emptyStateDescription": "Kund:innen erscheinen hier, sobald sie angelegt wurden.",
+      "noResultsTitle": "Keine passenden Kund:innen gefunden",
+      "noResultsDescription": "Versuchen Sie, Ihren Suchbegriff oder den Schlagwortfilter anzupassen.",
+      "errorMessage": "Beim Laden der Kund:innen ist ein Fehler aufgetreten. Bitte versuchen Sie es erneut.",
+      "tableCaption": "Kund:innenverzeichnis",
+      "columnName": "Name",
+      "columnPrimaryContact": "Hauptkontakt",
+      "columnEmail": "E-Mail",
+      "columnPhone": "Telefon",
+      "columnTags": "Schlagwörter",
+      "noTags": "—",
+      "noValue": "—",
+      "viewProfile": "Profil von {name} anzeigen"
+    },
+    "profile": {
+      "title": "Kundenprofil",
+      "backToDirectory": "Zurück zu Kund:innen",
+      "kind": {
+        "person": "Person",
+        "company": "Unternehmen"
+      },
+      "preferredLanguage": "Bevorzugte Sprache",
+      "language": {
+        "en": "Englisch",
+        "de": "Deutsch"
+      },
+      "tags": "Schlagwörter",
+      "noTags": "Keine Schlagwörter zugewiesen",
+      "contactsTitle": "Kontakte",
+      "primaryBadge": "Hauptkontakt",
+      "noContacts": "Keine Kontakte hinterlegt",
+      "emailLabel": "E-Mail",
+      "phoneLabel": "Telefon",
+      "addressesTitle": "Adressen",
+      "addressType": {
+        "postal": "Postadresse",
+        "billing": "Rechnungsadresse"
+      },
+      "noAddresses": "Keine Adressen hinterlegt",
+      "activityTitle": "Aktivität & Zeitstempel",
+      "createdAt": "Erstellt am",
+      "lastActivityAt": "Letzte Aktivität",
+      "notFoundTitle": "Kund:in nicht gefunden",
+      "notFoundDescription": "Die angeforderte Kund:in existiert nicht oder wurde möglicherweise gelöscht.",
+      "errorMessage": "Beim Laden des Kundenprofils ist ein Fehler aufgetreten."
+    }
   }
 }

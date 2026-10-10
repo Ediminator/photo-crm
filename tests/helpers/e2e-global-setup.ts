@@ -1,6 +1,8 @@
 import { PGlite } from '@electric-sql/pglite';
+import { drizzle } from 'drizzle-orm/pglite';
 import fs from 'node:fs';
 import path from 'node:path';
+import { seedDemo } from '../../scripts/seed-demo.mjs';
 
 export const E2E_OWNER_EMAIL = 'owner@example.com';
 export const E2E_OWNER_PASSWORD = 'ValidOwnerPassword123!';
@@ -22,6 +24,15 @@ export default async function globalSetup() {
     const sql = fs.readFileSync(path.join(drizzleDir, file), 'utf8');
     await pglite.exec(sql);
   }
+
+  // Seed demo data (clients, contacts, addresses, tags, studio settings)
+  const dbClient = drizzle(pglite);
+  await seedDemo({
+    dbClient,
+    seed: 42,
+    forceDemo: true,
+    nodeEnv: 'test',
+  });
 
   await pglite.close();
 }

@@ -13,3 +13,5 @@ export * from './layout/skip-link';
 export * from './layout/nav-links';
 export * from './layout/sidebar';
 export * from './layout/mobile-nav';
+export * from './clients/client-directory';
+export * from './clients/client-profile';
