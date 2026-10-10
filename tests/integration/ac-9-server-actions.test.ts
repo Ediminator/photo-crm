@@ -35,8 +35,10 @@ import {
   getOwnerSessionInfoAction,
 } from '@/server/auth/actions';
 import { verification } from '@/server/db/schema/auth';
+import { auditEvents } from '@/server/db/schema/audit';
 import { hashResetToken } from '@/server/auth/password-reset';
 import type { DbClient } from '@/server/db/client';
+import { eq } from 'drizzle-orm';
 
 describe('AC-9: Server Actions Execution, Authorization, and Session Lifecycle', () => {
   let testDb: TestDatabaseInstance;
@@ -329,5 +331,67 @@ describe('AC-9: Server Actions Execution, Authorization, and Session Lifecycle',
     );
     expect(throttledRes.success).toBe(false);
     expect(throttledRes.error).toBe('Too many password reset attempts. Please try again later.');
+  });
+
+  it('I1-S02: signOutAction records session UUID in audit metadata and never persists raw bearer cookie token', async () => {
+    const dbClient = testDb.db as unknown as DbClient;
+
+    // 0. Setup owner first so credentials exist in the fresh isolated database
+    const setupRes = await setupOwnerAction(
+      {
+        setupToken: validSetupToken,
+        name: 'Studio Owner',
+        email: 'owner@example.com',
+        password: 'ValidPassword123!',
+      },
+      dbClient,
+    );
+    expect(setupRes.success).toBe(true);
+
+    // 1. Sign in to obtain an authenticated session
+    const signInRes = await signInAction(
+      {
+        email: 'owner@example.com',
+        password: 'ValidPassword123!',
+      },
+      dbClient,
+    );
+    expect(signInRes.success).toBe(true);
+
+    const rawCookieToken =
+      mockCookiesStore.get('photo_crm_session') ??
+      mockCookiesStore.get('__Secure-photo_crm_session');
+    expect(rawCookieToken).toBeDefined();
+    expect(typeof rawCookieToken).toBe('string');
+
+    // 2. Execute sign out
+    const signOutRes = await signOutAction(dbClient);
+    expect(signOutRes.success).toBe(true);
+
+    // 3. Inspect recorded audit event
+    const signOutEvents = await dbClient
+      .select()
+      .from(auditEvents)
+      .where(eq(auditEvents.action, 'auth.sign_out.success'));
+
+    expect(signOutEvents.length).toBeGreaterThanOrEqual(1);
+    const latestEvent = signOutEvents[signOutEvents.length - 1];
+    expect(latestEvent).toBeDefined();
+
+    const metadata = latestEvent?.metadata as Record<string, unknown> | null;
+    expect(metadata).not.toBeNull();
+    const recordedSessionId = metadata?.session_id;
+
+    // Must be a valid UUIDv7 format
+    expect(typeof recordedSessionId).toBe('string');
+    expect(recordedSessionId).toMatch(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
+    );
+
+    // CRITICAL: MUST NEVER BE THE RAW BEARER COOKIE TOKEN
+    expect(recordedSessionId).not.toBe(rawCookieToken);
+
+    // Actor ID should be the user UUID, not null
+    expect(latestEvent?.actorId).toBe(signInRes.data?.user.id);
   });
 });

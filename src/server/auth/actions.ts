@@ -21,6 +21,7 @@ import {
 import {
   rotateSession,
   revokeSession,
+  verifySession,
   signOutEverywhere,
   getSessionCookieAttributes,
   SESSION_COOKIE_NAME,
@@ -30,6 +31,7 @@ import { setupOwner } from './setup';
 import { requestPasswordReset, resetPassword } from './password-reset';
 import { requireOwner } from './guards';
 import { env } from '@/env';
+import { audit } from '@/server/audit';
 
 export type ActionResult<T = unknown> =
   { success: true; data?: T; error?: never } | { success: false; error: string; data?: never };
@@ -109,6 +111,27 @@ export async function setupOwnerAction(
     });
     await setSessionCookie(session.token);
 
+    try {
+      await audit(
+        {
+          actorType: 'system',
+          actorId: owner.id,
+          action: 'auth.setup.completed',
+          targetType: 'user',
+          targetId: owner.id,
+          outcome: 'success',
+          metadata: {
+            owner_id: owner.id,
+            setup_method: 'initial_bootstrap',
+            ip_anonymized: anonymizeIp(ip),
+          },
+        },
+        client,
+      );
+    } catch {
+      // Non-fatal if audit logging encounters a transient error
+    }
+
     return {
       success: true,
       data: {
@@ -129,6 +152,27 @@ export async function setupOwnerAction(
       success: false,
       error: err instanceof Error ? err.message : 'Setup failed.',
     };
+  }
+}
+
+async function recordSignInAuditFailure(ip: string, client: DbClient): Promise<void> {
+  try {
+    await audit(
+      {
+        actorType: 'system',
+        actorId: null,
+        action: 'auth.sign_in.failure',
+        targetType: 'user',
+        outcome: 'failure',
+        metadata: {
+          failure_reason: 'invalid_credentials',
+          ip_anonymized: anonymizeIp(ip),
+        },
+      },
+      client,
+    );
+  } catch {
+    // Non-fatal
   }
 }
 
@@ -159,6 +203,7 @@ export async function signInAction(
 
   if (userRows.length === 0) {
     await recordSignInFailure(normalizedEmail, ip, client);
+    await recordSignInAuditFailure(ip, client);
     // Generic error to prevent enumeration
     return {
       success: false,
@@ -169,6 +214,7 @@ export async function signInAction(
   const existingUser = userRows[0];
   if (!existingUser) {
     await recordSignInFailure(normalizedEmail, ip, client);
+    await recordSignInAuditFailure(ip, client);
     return {
       success: false,
       error: 'Invalid email or password.',
@@ -185,6 +231,7 @@ export async function signInAction(
   const acc = accountRows[0];
   if (!acc?.password) {
     await recordSignInFailure(normalizedEmail, ip, client);
+    await recordSignInAuditFailure(ip, client);
     return {
       success: false,
       error: 'Invalid email or password.',
@@ -196,6 +243,7 @@ export async function signInAction(
 
   if (!passwordMatch) {
     await recordSignInFailure(normalizedEmail, ip, client);
+    await recordSignInAuditFailure(ip, client);
     return {
       success: false,
       error: 'Invalid email or password.',
@@ -221,6 +269,27 @@ export async function signInAction(
   });
   await setSessionCookie(newSession.token);
 
+  try {
+    await audit(
+      {
+        actorType: 'owner',
+        actorId: existingUser.id,
+        action: 'auth.sign_in.success',
+        targetType: 'session',
+        targetId: newSession.id,
+        outcome: 'success',
+        metadata: {
+          session_id: newSession.id,
+          auth_method: 'password',
+          ip_anonymized: anonymizeIp(ip),
+        },
+      },
+      client,
+    );
+  } catch {
+    // Non-fatal if audit logging encounters a transient error
+  }
+
   return {
     success: true,
     data: {
@@ -243,10 +312,39 @@ export async function signOutAction(client: DbClient = db): Promise<ActionResult
       cookieStore.get(SECURE_SESSION_COOKIE_NAME)?.value ??
       cookieStore.get(SESSION_COOKIE_NAME)?.value;
 
+    let sessionId: string | null = null;
+    let actorId: string | null = null;
+
     if (token) {
+      const verified = await verifySession(token, client);
+      if (verified) {
+        sessionId = verified.session.id;
+        actorId = verified.user.id;
+      }
       await revokeSession(token, client);
     }
     await clearSessionCookie();
+
+    try {
+      await audit(
+        {
+          actorType: 'owner',
+          actorId,
+          action: 'auth.sign_out.success',
+          targetType: 'session',
+          targetId: sessionId,
+          outcome: 'success',
+          metadata: {
+            session_id: sessionId,
+            everywhere: false,
+          },
+        },
+        client,
+      );
+    } catch {
+      // Non-fatal
+    }
+
     return { success: true };
   } catch {
     await clearSessionCookie();
@@ -261,6 +359,26 @@ export async function signOutEverywhereAction(client: DbClient = db): Promise<Ac
   const context = await requireOwner({ client });
   await signOutEverywhere(context.user.id, client);
   await clearSessionCookie();
+
+  try {
+    await audit(
+      {
+        actorType: 'owner',
+        actorId: context.user.id,
+        action: 'auth.sign_out.success',
+        targetType: 'user',
+        targetId: context.user.id,
+        outcome: 'success',
+        metadata: {
+          everywhere: true,
+        },
+      },
+      client,
+    );
+  } catch {
+    // Non-fatal
+  }
+
   return { success: true };
 }
 
@@ -312,6 +430,24 @@ export async function requestPasswordResetAction(
       client,
       transporter: options.transporter,
     });
+
+    try {
+      await audit(
+        {
+          actorType: 'system',
+          actorId: null,
+          action: 'auth.password_reset.requested',
+          outcome: 'success',
+          metadata: {
+            ip_anonymized: anonymizeIp(ip),
+          },
+        },
+        client,
+      );
+    } catch {
+      // Non-fatal
+    }
+
     return {
       success: true,
       data: { message: result.message },
@@ -357,6 +493,24 @@ export async function resetPasswordAction(
     }
 
     await resetPassword({ ...formData, client });
+
+    try {
+      await audit(
+        {
+          actorType: 'owner',
+          actorId: null,
+          action: 'auth.password_reset.completed',
+          outcome: 'success',
+          metadata: {
+            duration_ms: 0,
+          },
+        },
+        client,
+      );
+    } catch {
+      // Non-fatal
+    }
+
     return { success: true };
   } catch (err) {
     try {

@@ -175,6 +175,15 @@ export const serverSchema = z.object({
     .default('false')
     .transform((val) => val === 'true' || val === 'require'),
 
+  // Retention framework configuration
+  RETENTION_PERIOD_MONTHS: z.coerce.number().int().positive().default(24),
+  DATABASE_RETENTION_URL: z
+    .string()
+    .regex(/^postgres(ql)?:\/\/.+/, {
+      message: 'DATABASE_RETENTION_URL must be a valid PostgreSQL connection URL.',
+    })
+    .optional(),
+
   // Local dev credentials & ports (Docker Compose)
   POSTGRES_DB: z.string().default('photo_crm_dev'),
   POSTGRES_USER: z.string().default('postgres'),
