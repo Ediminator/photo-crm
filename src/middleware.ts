@@ -112,11 +112,14 @@ export default function middleware(request: NextRequest): NextResponse {
   const isProd = process.env.NODE_ENV === 'production';
 
   // 1. Correlation ID: propagate incoming x-request-id or generate new UUID
-  const incomingRequestId = request.headers.get('x-request-id');
-  const requestId =
-    incomingRequestId && incomingRequestId.trim().length > 0 && incomingRequestId.length <= 128
-      ? incomingRequestId.trim()
-      : crypto.randomUUID();
+  const rawHeader = request.headers.get('x-request-id');
+  const incomingRequestId = rawHeader ? rawHeader.trim() : null;
+  const isValidRequestId =
+    incomingRequestId !== null &&
+    incomingRequestId.length > 0 &&
+    incomingRequestId.length <= 128 &&
+    /^[a-zA-Z0-9_\-.]{1,128}$/.test(incomingRequestId);
+  const requestId = isValidRequestId && incomingRequestId ? incomingRequestId : crypto.randomUUID();
 
   // 2. Generate cryptographically random 16-byte base64 nonce for CSP (strict-dynamic)
   const nonce = generateNonce();

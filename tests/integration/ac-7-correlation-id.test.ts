@@ -100,4 +100,38 @@ describe('AC-7: Request Correlation ID and X-Request-Id Header', () => {
     expect(lines[1]?.step).toBe('auth_check');
     expect(lines[2]?.step).toBe('response_sent');
   });
+
+  it('I1-S04: rejects malformed or malicious x-request-id characters and falls back to crypto.randomUUID()', () => {
+    const maliciousInputs = [
+      '<script>alert(1)</script>',
+      'req-id-with spaces',
+      'req-id/injection',
+      'req-id@domain',
+      '../../etc/passwd',
+      'req-id-with;semi=colon',
+      'a'.repeat(129), // exceeds 128 characters
+    ];
+
+    for (const badInput of maliciousInputs) {
+      const request = new NextRequest('http://localhost:3000/en/setup', {
+        headers: { 'x-request-id': badInput },
+      });
+      const response = middleware(request);
+      const generatedId = response.headers.get('X-Request-Id');
+
+      expect(generatedId).not.toBe(badInput);
+      expect(generatedId).toMatch(
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
+      );
+    }
+  });
+
+  it('I1-S04: accepts valid correlation ID conforming to /^[a-zA-Z0-9_\\-.]{1,128}$/', () => {
+    const validInput = 'req.abc-123_XYZ.456';
+    const request = new NextRequest('http://localhost:3000/en/setup', {
+      headers: { 'x-request-id': validInput },
+    });
+    const response = middleware(request);
+    expect(response.headers.get('X-Request-Id')).toBe(validInput);
+  });
 });

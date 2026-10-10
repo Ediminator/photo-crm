@@ -21,6 +21,7 @@ import {
 import {
   rotateSession,
   revokeSession,
+  verifySession,
   signOutEverywhere,
   getSessionCookieAttributes,
   SESSION_COOKIE_NAME,
@@ -311,7 +312,15 @@ export async function signOutAction(client: DbClient = db): Promise<ActionResult
       cookieStore.get(SECURE_SESSION_COOKIE_NAME)?.value ??
       cookieStore.get(SESSION_COOKIE_NAME)?.value;
 
+    let sessionId: string | null = null;
+    let actorId: string | null = null;
+
     if (token) {
+      const verified = await verifySession(token, client);
+      if (verified) {
+        sessionId = verified.session.id;
+        actorId = verified.user.id;
+      }
       await revokeSession(token, client);
     }
     await clearSessionCookie();
@@ -320,12 +329,13 @@ export async function signOutAction(client: DbClient = db): Promise<ActionResult
       await audit(
         {
           actorType: 'owner',
-          actorId: null,
+          actorId,
           action: 'auth.sign_out.success',
           targetType: 'session',
+          targetId: sessionId,
           outcome: 'success',
           metadata: {
-            session_id: token ?? null,
+            session_id: sessionId,
             everywhere: false,
           },
         },

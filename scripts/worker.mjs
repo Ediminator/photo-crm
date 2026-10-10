@@ -4,12 +4,11 @@
  * Background worker skeleton for maintenance tasks and daily retention sweeps.
  *
  * Features:
- * 1. Postgres advisory lock to ensure single active worker.
+ * 1. Postgres advisory lock to ensure single active worker leader.
  * 2. Graceful shutdown on SIGTERM / SIGINT ensuring transaction atomicity.
- * 3. Schedules retention:sweep daily.
+ * 3. Schedules canonical retention:sweep daily with statutory legal hold and batch chunking.
  * 4. Supports --run-once flag for CLI / cron invocation.
  */
-import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import postgres from 'postgres';
 import { executeRetentionSweep } from './retention-sweep.mjs';
@@ -22,15 +21,18 @@ const SWEEP_INTERVAL_MS = 24 * 60 * 60 * 1000; // 24 hours (daily)
 export class BackgroundWorker {
   constructor(options = {}) {
     this.connectionUrl =
-      options.connectionUrl ||
-      process.env.DATABASE_RETENTION_URL ||
-      process.env.DATABASE_MIGRATOR_URL ||
-      process.env.DATABASE_URL ||
-      'postgres://photo_crm_migrator:password@127.0.0.1:5432/photo_crm_dev';
+      options.connectionUrl || process.env.DATABASE_RETENTION_URL || process.env.DATABASE_URL;
+
+    if (!this.connectionUrl) {
+      throw new Error(
+        'Database connection URL missing. Set DATABASE_RETENTION_URL or DATABASE_URL in environment.',
+      );
+    }
 
     this.runOnce = options.runOnce ?? process.argv.includes('--run-once');
     this.intervalMs = options.intervalMs ?? SWEEP_INTERVAL_MS;
     this.isShuttingDown = false;
+    this.abortController = new AbortController();
     this.activeSweepPromise = null;
     this.timer = null;
     this.sql = null;
@@ -77,9 +79,15 @@ export class BackgroundWorker {
       this.activeSweepPromise = executeRetentionSweep({
         connectionUrl: this.connectionUrl,
         dryRun: false,
+        signal: this.abortController.signal,
       });
-      await this.activeSweepPromise;
-      console.log('✅ Worker: daily retention sweep completed.');
+      const results = await this.activeSweepPromise;
+      const totalDeleted =
+        results.auditEvents.deleted + results.sessions.deleted + results.rateLimits.deleted;
+      const totalHeld = results.auditEvents.held + results.sessions.held + results.rateLimits.held;
+      console.log(
+        `✅ Worker: daily retention sweep completed (deleted: ${totalDeleted}, held: ${totalHeld}).`,
+      );
     } catch (err) {
       console.error(
         '❌ Worker: retention sweep failed:',
@@ -93,6 +101,7 @@ export class BackgroundWorker {
   async stop() {
     if (this.isShuttingDown) return;
     this.isShuttingDown = true;
+    this.abortController.abort();
     console.log('🛑 Worker shutting down gracefully...');
 
     if (this.timer) {
