@@ -30,6 +30,16 @@ export interface VerifyApiKeyResult {
 }
 
 /**
+ * Computes the SHA-256 hash of a high-entropy bearer token for database storage and indexing.
+ * Bearer tokens contain 256 bits of CSPRNG entropy; fast cryptographic hashing (SHA-256)
+ * is standard practice to allow indexed lookups while protecting tokens at rest.
+ */
+export function hashApiKeyToken(tokenString: string): string {
+  // codeql[js/insufficient-password-hash] High-entropy bearer token hashed with SHA-256 for fast indexed database lookup, not a human password.
+  return crypto.createHash('sha256').update(tokenString).digest('hex');
+}
+
+/**
  * Generates a cryptographically secure, scoped API token in format pcrm_live_<32_bytes_hex>.
  * The raw token is returned once and NEVER stored unhashed.
  */
@@ -44,7 +54,7 @@ export async function createApiKey({
   const randomHex = crypto.randomBytes(32).toString('hex');
   const apiKey = `${API_KEY_PREFIX}${randomHex}`;
   const prefix = apiKey.slice(0, 16);
-  const tokenHash = crypto.createHash('sha256').update(apiKey).digest('hex');
+  const tokenHash = hashApiKeyToken(apiKey);
 
   const now = new Date();
   let expiresAt: Date | null = null;
@@ -88,7 +98,7 @@ export async function verifyApiKey(
     return { valid: false, error: 'invalid_format' };
   }
 
-  const tokenHash = crypto.createHash('sha256').update(apiKey).digest('hex');
+  const tokenHash = hashApiKeyToken(apiKey);
   const now = new Date();
 
   const rows = await client.select().from(apiKeys).where(eq(apiKeys.tokenHash, tokenHash)).limit(1);

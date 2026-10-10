@@ -3,7 +3,13 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 vi.mock('server-only', () => ({}));
 
 import { createIsolatedTestDatabase, type TestDatabaseInstance } from '../helpers/db-test-helper';
-import { createApiKey, revokeApiKey, verifyApiKey, API_KEY_PREFIX } from '@/server/auth/api-keys';
+import {
+  createApiKey,
+  revokeApiKey,
+  verifyApiKey,
+  API_KEY_PREFIX,
+  hashApiKeyToken,
+} from '@/server/auth/api-keys';
 import { requireAuth, UnauthorizedError, ForbiddenError } from '@/server/auth/guards';
 import { user } from '@/server/db/schema/auth';
 import type { DbClient } from '@/server/db/client';
@@ -255,5 +261,13 @@ describe('AC-11: API key authentication, scope enforcement, and revocation', () 
       client: dbClient,
     });
     expect(adminContext.user.id).toBe(owner.id);
+  });
+
+  it('AC-11: hashApiKeyToken computes deterministic SHA-256 hash of high-entropy token', () => {
+    const raw = 'pcrm_live_0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
+    const hash = hashApiKeyToken(raw);
+    expect(hash).toBeDefined();
+    expect(hash).toHaveLength(64);
+    expect(hashApiKeyToken(raw)).toBe(hash);
   });
 });
