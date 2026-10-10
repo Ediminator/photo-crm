@@ -148,3 +148,27 @@ Constraints:
 
 - `client_addresses_client_id_type_unique`: `UNIQUE (client_id, type)` (maximum 1 address per type per client)
 - Foreign Key: `ON DELETE CASCADE` ensures addresses are removed when their client is erased.
+
+### `tags` Table (TASK-0010)
+
+| Column            | Type          | Constraints               | Description                                |
+| ----------------- | ------------- | ------------------------- | ------------------------------------------ |
+| `id`              | `uuid`        | `PRIMARY KEY`             | UUIDv7 primary key                         |
+| `name`            | `varchar(50)` | `NOT NULL`                | Tag label (original casing)                |
+| `name_normalized` | `varchar(50)` | `NOT NULL, UNIQUE`        | Trimmed, lowercased name for deduplication |
+| `created_at`      | `timestamptz` | `NOT NULL, DEFAULT now()` | UTC creation timestamp                     |
+| `updated_at`      | `timestamptz` | `NOT NULL, DEFAULT now()` | UTC last update timestamp                  |
+
+### `client_tags` Table (TASK-0010)
+
+| Column       | Type          | Constraints                                          | Description              |
+| ------------ | ------------- | ---------------------------------------------------- | ------------------------ |
+| `client_id`  | `uuid`        | `NOT NULL, REFERENCES clients(id) ON DELETE CASCADE` | Foreign key to client    |
+| `tag_id`     | `uuid`        | `NOT NULL, REFERENCES tags(id) ON DELETE CASCADE`    | Foreign key to tag       |
+| `created_at` | `timestamptz` | `NOT NULL, DEFAULT now()`                            | UTC assignment timestamp |
+
+Constraints:
+
+- Primary Key: `PRIMARY KEY (client_id, tag_id)`
+- Foreign Keys: `ON DELETE CASCADE` on both references ensures tag links are cleaned up when a client or tag is deleted.
+- Index: `client_tags_tag_id_idx` on `tag_id` for efficient reverse lookups and client counts.

@@ -53,6 +53,7 @@ export const ACTION_METADATA_ALLOWLIST = new Map<string, readonly string[]>([
   ['client.contact.removed', CLIENT_AUDIT_KEYS],
   ['client.address.upserted', CLIENT_AUDIT_KEYS],
   ['client.address.removed', CLIENT_AUDIT_KEYS],
+  ['client.tags.changed', ['tag_count', 'created_tag_count']],
 ]);
 
 /**

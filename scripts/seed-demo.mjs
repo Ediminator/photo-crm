@@ -67,6 +67,20 @@ export const clientAddressesTable = pgTable('client_addresses', {
   updatedAt: timestamp('updated_at', { withTimezone: true, mode: 'date' }).notNull(),
 });
 
+export const tagsTable = pgTable('tags', {
+  id: uuid('id').primaryKey(),
+  name: varchar('name', { length: 50 }).notNull(),
+  nameNormalized: varchar('name_normalized', { length: 50 }).notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' }).notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true, mode: 'date' }).notNull(),
+});
+
+export const clientTagsTable = pgTable('client_tags', {
+  clientId: uuid('client_id').notNull(),
+  tagId: uuid('tag_id').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' }).notNull(),
+});
+
 /**
  * Generates an RFC 9562 UUIDv7 deterministically using the provided faker PRNG.
  * @param {any} fakerInstance
@@ -143,6 +157,19 @@ export function generateDemoData(seed = DEFAULT_SEED) {
     };
   });
 
+  // Fixed synthetic tags (TASK-0010)
+  const DEMO_TAG_NAMES = ['Wedding', 'Portrait', 'Corporate', '2026'];
+  const tags = DEMO_TAG_NAMES.map((name, idx) => {
+    const tagTs = baseTimestampMs + (idx + 1) * 10000;
+    return {
+      id: generateDeterministicUuidV7(faker, tagTs),
+      name,
+      nameNormalized: name.toLowerCase(),
+      createdAt: new Date(tagTs),
+      updatedAt: new Date(tagTs),
+    };
+  });
+
   // Generate 50 deterministic synthetic clients (TASK-0009, AC-17)
   let phoneCounter = 1;
   const clients = Array.from({ length: 50 }, (_, i) => {
@@ -206,6 +233,12 @@ export function generateDemoData(seed = DEFAULT_SEED) {
       };
     });
 
+    // 1 to 2 tags per client (TASK-0010)
+    const clientTagsList = [
+      tags[i % tags.length],
+      ...(i % 2 === 0 ? [tags[(i + 1) % tags.length]] : []),
+    ];
+
     return {
       id: clientId,
       kind,
@@ -216,6 +249,7 @@ export function generateDemoData(seed = DEFAULT_SEED) {
       updatedAt: new Date(clientTimestampMs),
       contacts: clientContactsList,
       addresses: clientAddressesList,
+      tags: clientTagsList,
     };
   });
 
@@ -223,6 +257,7 @@ export function generateDemoData(seed = DEFAULT_SEED) {
     settings,
     contacts,
     clients,
+    tags,
   };
 }
 
@@ -299,7 +334,21 @@ export async function seedDemo(options = {}) {
       await client.insert(studioSettings).values(demoData.settings);
     }
 
-    // Insert clients, contacts, and addresses
+    // Insert tags (TASK-0010)
+    for (const tag of demoData.tags) {
+      await client
+        .insert(tagsTable)
+        .values({
+          id: tag.id,
+          name: tag.name,
+          nameNormalized: tag.nameNormalized,
+          createdAt: tag.createdAt,
+          updatedAt: tag.updatedAt,
+        })
+        .onConflictDoNothing();
+    }
+
+    // Insert clients, contacts, addresses, and tags
     for (const cl of demoData.clients) {
       await client.insert(clientsTable).values({
         id: cl.id,
@@ -340,6 +389,17 @@ export async function seedDemo(options = {}) {
           createdAt: addr.createdAt,
           updatedAt: addr.updatedAt,
         });
+      }
+
+      for (const tag of cl.tags) {
+        await client
+          .insert(clientTagsTable)
+          .values({
+            clientId: cl.id,
+            tagId: tag.id,
+            createdAt: cl.createdAt,
+          })
+          .onConflictDoNothing();
       }
     }
 

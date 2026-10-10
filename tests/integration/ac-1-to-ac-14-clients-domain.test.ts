@@ -513,7 +513,7 @@ describe('AC-1 to AC-14: Clients and contacts domain core', () => {
     expect(firstItem).toBeDefined();
     if (!firstItem) throw new Error('Expected firstItem to be defined');
     expect(Object.keys(firstItem).sort()).toEqual(
-      ['displayName', 'id', 'kind', 'primaryContact'].sort(),
+      ['displayName', 'id', 'kind', 'primaryContact', 'tags'].sort(),
     );
     expect(Object.keys(firstItem.primaryContact).sort()).toEqual(
       ['email', 'familyName', 'givenName', 'phone'].sort(),

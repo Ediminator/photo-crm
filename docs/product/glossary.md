@@ -32,3 +32,4 @@ Use these terms consistently in code, UI strings and docs. The UX reviewer check
 | Preferred language   | Preferred language    | Bevorzugte Sprache             | `preferredLocale`    | Language used for communication and generated documents                    |
 | Possible duplicate   | Possible duplicate    | Mögliches Duplikat             | `duplicateEmail`     | Warning when a contact email is already registered to another client       |
 | Primary contact      | Primary contact       | Hauptkontakt                   | `primaryContact`     | The designated main person representing a client for communication         |
+| Tag                  | Tag                   | Schlagwort                     | `tag`                | Studio-defined label for categorizing and filtering clients                |

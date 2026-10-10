@@ -24,9 +24,13 @@ import {
   deleteContactRecord,
   upsertAddressRecord,
   deleteAddressRecord,
+  setClientTagsRecord,
+  listAllTags,
   type DuplicateEmailMatch,
   type ClientWithRelations,
   type ListClientsResult,
+  type ClientTagItem,
+  type TagSummaryItem,
 } from './repo';
 
 export type ServiceResult<T> =
@@ -617,14 +621,115 @@ export async function getClient(
 }
 
 /**
- * Lists clients with pagination.
+ * Lists clients with pagination, optional search (q), and optional tag filter (tagId).
+ * Search terms are never logged or stored.
  */
 export async function getClientList(
   page = 1,
   pageSize = 25,
+  qOrClient?: string | DbClient,
+  tagId?: string,
   client: DbClient = defaultDb,
 ): Promise<ServiceResult<ListClientsResult>> {
-  const result = await listClients(page, pageSize, client);
+  let q: string | undefined;
+  let dbClient: DbClient = defaultDb;
+
+  if (qOrClient && typeof qOrClient === 'object') {
+    dbClient = qOrClient;
+  } else if (typeof qOrClient === 'string') {
+    q = qOrClient;
+    dbClient = client;
+  }
+
+  const result = await listClients({ page, pageSize, q, tagId }, dbClient);
+  return {
+    success: true,
+    data: result,
+  };
+}
+
+/**
+ * Replaces a client's tag set. Reuses existing tags by normalized name.
+ * Audited with tag_count and created_tag_count only (no tag names in audit metadata or logs).
+ */
+export async function setClientTags(
+  input: {
+    clientId: string;
+    tagNames: string[];
+  },
+  auth: AuthContext,
+  client: DbClient = defaultDb,
+): Promise<ServiceResult<{ clientId: string; tags: ClientTagItem[] }>> {
+  // 1. Enforce max 20 distinct tag names per client (AC-2)
+  const normalizedSet = new Set<string>();
+  for (const name of input.tagNames) {
+    normalizedSet.add(name.trim().toLowerCase());
+  }
+
+  if (normalizedSet.size > 20) {
+    return {
+      success: false,
+      code: 'LIMIT_EXCEEDED',
+      error: 'LIMIT_EXCEEDED',
+    };
+  }
+
+  // 2. Execute replacement in database
+  const result = await setClientTagsRecord(input.clientId, input.tagNames, client);
+  if (!result) {
+    return {
+      success: false,
+      code: 'NOT_FOUND',
+      error: 'NOT_FOUND',
+    };
+  }
+
+  // 3. Audit logging with tag counts only (no tag names)
+  const { actorType, actorId } = getAuditActor(auth);
+
+  await audit(
+    {
+      actorType,
+      actorId,
+      action: 'client.tags.changed',
+      targetType: 'client',
+      targetId: input.clientId,
+      outcome: 'success',
+      metadata: {
+        tag_count: result.tagCount,
+        created_tag_count: result.createdTagCount,
+      },
+    },
+    client,
+  );
+
+  // 4. Structured logging without tag names
+  logger.info(
+    {
+      clientId: input.clientId,
+      tagCount: result.tagCount,
+      createdTagCount: result.createdTagCount,
+      action: 'client.tags.changed',
+    },
+    'Client tags updated successfully',
+  );
+
+  return {
+    success: true,
+    data: {
+      clientId: input.clientId,
+      tags: result.tags,
+    },
+  };
+}
+
+/**
+ * Lists all tags with their client count, sorted by name ascending.
+ */
+export async function listTags(
+  client: DbClient = defaultDb,
+): Promise<ServiceResult<TagSummaryItem[]>> {
+  const result = await listAllTags(client);
   return {
     success: true,
     data: result,

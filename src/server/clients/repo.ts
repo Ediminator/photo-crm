@@ -1,4 +1,4 @@
-import { eq, and, asc, count, ne, inArray } from 'drizzle-orm';
+import { eq, and, asc, count, ne, inArray, sql, type SQL } from 'drizzle-orm';
 import { db as defaultDb, type DbClient } from '@/server/db/client';
 import {
   clients,
@@ -11,6 +11,8 @@ import {
   type ClientLocale,
   type AddressType,
 } from '@/server/db/schema/clients';
+import { tags, clientTags } from '@/server/db/schema/tags';
+import { escapeLikeWildcards } from './schema';
 import { generateUuidV7 } from '@/lib/id';
 
 export interface DuplicateEmailMatch {
@@ -18,10 +20,22 @@ export interface DuplicateEmailMatch {
   displayName: string;
 }
 
+export interface ClientTagItem {
+  id: string;
+  name: string;
+}
+
+export interface TagSummaryItem {
+  id: string;
+  name: string;
+  clientCount: number;
+}
+
 export interface ClientWithRelations {
   client: Client;
   contacts: ClientContact[];
   addresses: ClientAddress[];
+  tags: ClientTagItem[];
 }
 
 export interface ClientListItem {
@@ -34,6 +48,14 @@ export interface ClientListItem {
     email: string | null;
     phone: string | null;
   };
+  tags: ClientTagItem[];
+}
+
+export interface ListClientsOptions {
+  page?: number;
+  pageSize?: number;
+  q?: string;
+  tagId?: string;
 }
 
 export interface ListClientsResult {
@@ -70,7 +92,7 @@ export async function findDuplicateEmails(
 }
 
 /**
- * Retrieves a client along with all its contacts and addresses.
+ * Retrieves a client along with all its contacts, addresses, and tags.
  */
 export async function getClientById(
   clientId: string,
@@ -129,37 +151,121 @@ export async function getClientById(
     .where(eq(clientAddresses.clientId, clientId))
     .orderBy(asc(clientAddresses.type));
 
+  const clientTagRows = await client
+    .select({
+      id: tags.id,
+      name: tags.name,
+    })
+    .from(clientTags)
+    .innerJoin(tags, eq(clientTags.tagId, tags.id))
+    .where(eq(clientTags.clientId, clientId))
+    .orderBy(asc(tags.name), asc(tags.id));
+
   return {
     client: clientRow,
     contacts,
     addresses,
+    tags: clientTagRows,
   };
 }
 
 /**
- * Lists clients with pagination, ordered by display_name then id.
- * Returns each client with its primary contact details.
+ * Lists clients with pagination and optional search (q) and tag filtering (tagId).
+ * Escapes LIKE wildcards in q and searches across display_name, contacts, and tags.
  */
 export async function listClients(
-  page = 1,
-  pageSize = 25,
-  client: DbClient = defaultDb,
+  optionsOrPage: ListClientsOptions | number = 1,
+  pageSizeOrClient: number | DbClient = 25,
+  maybeClient: DbClient = defaultDb,
 ): Promise<ListClientsResult> {
-  const offset = (page - 1) * pageSize;
+  let page = 1;
+  let pageSize = 25;
+  let q: string | undefined;
+  let tagId: string | undefined;
+  let client: DbClient = defaultDb;
 
-  const [totalRow] = await client.select({ total: count() }).from(clients);
+  if (typeof optionsOrPage === 'number') {
+    page = optionsOrPage;
+    if (typeof pageSizeOrClient === 'number') {
+      pageSize = pageSizeOrClient;
+      client = maybeClient;
+    } else {
+      client = pageSizeOrClient;
+    }
+  } else {
+    page = optionsOrPage.page ?? 1;
+    pageSize = optionsOrPage.pageSize ?? 25;
+    q = optionsOrPage.q;
+    tagId = optionsOrPage.tagId;
+    if (typeof pageSizeOrClient !== 'number') {
+      client = pageSizeOrClient;
+    } else {
+      client = maybeClient;
+    }
+  }
+
+  const offset = (page - 1) * pageSize;
+  const whereConditions: SQL[] = [];
+
+  if (tagId) {
+    whereConditions.push(
+      sql`EXISTS (
+        SELECT 1 FROM client_tags
+        WHERE client_tags.client_id = ${clients.id}
+        AND client_tags.tag_id = ${tagId}
+      )`,
+    );
+  }
+
+  if (q && q.trim().length > 0) {
+    const escapedPattern = `%${escapeLikeWildcards(q.trim())}%`;
+    whereConditions.push(
+      sql`(
+        ${clients.displayName} ILIKE ${escapedPattern} ESCAPE '\\'
+        OR EXISTS (
+          SELECT 1 FROM client_contacts
+          WHERE client_contacts.client_id = ${clients.id}
+          AND (
+            client_contacts.given_name ILIKE ${escapedPattern} ESCAPE '\\'
+            OR client_contacts.family_name ILIKE ${escapedPattern} ESCAPE '\\'
+            OR client_contacts.email_normalized ILIKE ${escapedPattern} ESCAPE '\\'
+            OR client_contacts.phone ILIKE ${escapedPattern} ESCAPE '\\'
+          )
+        )
+        OR EXISTS (
+          SELECT 1 FROM client_tags
+          JOIN tags ON tags.id = client_tags.tag_id
+          WHERE client_tags.client_id = ${clients.id}
+          AND tags.name ILIKE ${escapedPattern} ESCAPE '\\'
+        )
+      )`,
+    );
+  }
+
+  const whereClause = whereConditions.length > 0 ? and(...whereConditions) : undefined;
+
+  const countQuery = client.select({ total: count() }).from(clients);
+  const [totalRow] = whereClause ? await countQuery.where(whereClause) : await countQuery;
   const total = totalRow?.total ?? 0;
 
-  const clientRows = await client
+  const dataQuery = client
     .select({
       id: clients.id,
       kind: clients.kind,
       displayName: clients.displayName,
     })
-    .from(clients)
-    .orderBy(asc(clients.displayName), asc(clients.id))
-    .limit(pageSize)
-    .offset(offset);
+    .from(clients);
+
+  const clientRows = whereClause
+    ? await dataQuery
+        .where(whereClause)
+        .orderBy(asc(clients.displayName), asc(clients.id))
+        .limit(pageSize)
+        .offset(offset)
+    : await dataQuery
+        .orderBy(asc(clients.displayName), asc(clients.id))
+        .limit(pageSize)
+        .offset(offset);
 
   if (clientRows.length === 0) {
     return {
@@ -184,6 +290,24 @@ export async function listClients(
 
   const primaryContactMap = new Map(primaryContacts.map((c) => [c.clientId, c]));
 
+  const clientTagRows = await client
+    .select({
+      clientId: clientTags.clientId,
+      id: tags.id,
+      name: tags.name,
+    })
+    .from(clientTags)
+    .innerJoin(tags, eq(clientTags.tagId, tags.id))
+    .where(inArray(clientTags.clientId, clientIds))
+    .orderBy(asc(tags.name), asc(tags.id));
+
+  const clientTagsMap = new Map<string, ClientTagItem[]>();
+  for (const row of clientTagRows) {
+    const existing = clientTagsMap.get(row.clientId) ?? [];
+    existing.push({ id: row.id, name: row.name });
+    clientTagsMap.set(row.clientId, existing);
+  }
+
   const items: ClientListItem[] = clientRows.map((c) => {
     const primary = primaryContactMap.get(c.id);
     return {
@@ -196,6 +320,7 @@ export async function listClients(
         email: primary?.email ?? null,
         phone: primary?.phone ?? null,
       },
+      tags: clientTagsMap.get(c.id) ?? [],
     };
   });
 
@@ -205,6 +330,147 @@ export async function listClients(
     page,
     pageSize,
   };
+}
+
+/**
+ * Replaces a client's tag set within a transaction, reusing existing tags by normalized name.
+ */
+export async function setClientTagsRecord(
+  clientId: string,
+  tagNames: string[],
+  dbClient: DbClient = defaultDb,
+): Promise<{ tagCount: number; createdTagCount: number; tags: ClientTagItem[] } | null> {
+  return await dbClient.transaction(async (tx) => {
+    const [clientRow] = await tx
+      .select({ id: clients.id })
+      .from(clients)
+      .where(eq(clients.id, clientId))
+      .limit(1);
+
+    if (!clientRow) {
+      return null;
+    }
+
+    const now = new Date();
+
+    // Deduplicate tag names case-insensitively within request, keeping first spelling
+    const uniqueRequestTags: { name: string; nameNormalized: string }[] = [];
+    const seenNormalized = new Set<string>();
+
+    for (const rawName of tagNames) {
+      const trimmed = rawName.trim();
+      const normalized = trimmed.toLowerCase();
+      if (!seenNormalized.has(normalized)) {
+        seenNormalized.add(normalized);
+        uniqueRequestTags.push({ name: trimmed, nameNormalized: normalized });
+      }
+    }
+
+    const resolvedTags: ClientTagItem[] = [];
+    let createdTagCount = 0;
+
+    if (uniqueRequestTags.length > 0) {
+      const normalizedList = uniqueRequestTags.map((t) => t.nameNormalized);
+      const existingTagRows = await tx
+        .select({
+          id: tags.id,
+          name: tags.name,
+          nameNormalized: tags.nameNormalized,
+        })
+        .from(tags)
+        .where(inArray(tags.nameNormalized, normalizedList));
+
+      const existingMap = new Map(existingTagRows.map((t) => [t.nameNormalized, t]));
+
+      for (const reqTag of uniqueRequestTags) {
+        const existing = existingMap.get(reqTag.nameNormalized);
+        if (existing) {
+          resolvedTags.push({ id: existing.id, name: existing.name });
+        } else {
+          const tagId = generateUuidV7();
+          const [insertedTag] = await tx
+            .insert(tags)
+            .values({
+              id: tagId,
+              name: reqTag.name,
+              nameNormalized: reqTag.nameNormalized,
+              createdAt: now,
+              updatedAt: now,
+            })
+            .onConflictDoNothing()
+            .returning();
+
+          if (insertedTag) {
+            createdTagCount++;
+            resolvedTags.push({ id: insertedTag.id, name: insertedTag.name });
+            existingMap.set(insertedTag.nameNormalized, insertedTag);
+          } else {
+            const [conflictTag] = await tx
+              .select({ id: tags.id, name: tags.name, nameNormalized: tags.nameNormalized })
+              .from(tags)
+              .where(eq(tags.nameNormalized, reqTag.nameNormalized))
+              .limit(1);
+            if (conflictTag) {
+              resolvedTags.push({ id: conflictTag.id, name: conflictTag.name });
+            }
+          }
+        }
+      }
+    }
+
+    // Replace client's tag set
+    await tx.delete(clientTags).where(eq(clientTags.clientId, clientId));
+
+    if (resolvedTags.length > 0) {
+      await tx.insert(clientTags).values(
+        resolvedTags.map((t) => ({
+          clientId,
+          tagId: t.id,
+          createdAt: now,
+        })),
+      );
+    }
+
+    // Bump client last_activity_at and updated_at
+    await tx
+      .update(clients)
+      .set({
+        lastActivityAt: now,
+        updatedAt: now,
+      })
+      .where(eq(clients.id, clientId));
+
+    resolvedTags.sort((a, b) => a.name.localeCompare(b.name));
+
+    return {
+      tagCount: resolvedTags.length,
+      createdTagCount,
+      tags: resolvedTags,
+    };
+  });
+}
+
+/**
+ * Lists all tags with their client count, sorted by name ascending.
+ * Includes unused tags (clientCount: 0).
+ */
+export async function listAllTags(client: DbClient = defaultDb): Promise<TagSummaryItem[]> {
+  const rows = await client
+    .select({
+      id: tags.id,
+      name: tags.name,
+      clientCount: count(clientTags.clientId),
+    })
+    .from(tags)
+    .leftJoin(clientTags, eq(tags.id, clientTags.tagId))
+    .groupBy(tags.id, tags.name)
+    .orderBy(asc(tags.name), asc(tags.id));
+
+  return rows.map((r) => ({
+    id: r.id,
+    name: r.name,
+    clientCount: r.clientCount,
+  }));
 }
 
 /**
