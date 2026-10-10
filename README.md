@@ -1,6 +1,7 @@
-# Setline
+# Ownlight
 
-> **Autonomous open-source studio CRM for photographers and videographers.**  
+> **your clients, your craft, your data.**  
+> Autonomous open-source studio CRM for photographers and videographers.  
 > Self-hosted, privacy-first, bilingual (English & German), and designed for visual professionals.
 
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](LICENSE)

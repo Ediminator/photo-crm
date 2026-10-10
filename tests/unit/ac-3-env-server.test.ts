@@ -17,8 +17,8 @@ describe('AC-3: Server environment validation and secret strength enforcement', 
     AUTH_URL: 'http://localhost:3000',
     // 64-char valid random hex string (32 bytes)
     AUTH_SECRET: '4f8c9b2d1e0a3f5c7b9a1d3e5f7a9b1c3d5e7f9a1b3c5d7e9f1a3b5c7d9e1f3a',
-    DATABASE_URL: 'postgres://setline_app:password@127.0.0.1:5432/setline_dev',
-    MIGRATION_DATABASE_URL: 'postgres://setline_migrator:password@127.0.0.1:5432/setline_dev',
+    DATABASE_URL: 'postgres://ownlight_app:password@127.0.0.1:5432/ownlight_dev',
+    MIGRATION_DATABASE_URL: 'postgres://ownlight_migrator:password@127.0.0.1:5432/ownlight_dev',
     SMTP_HOST: '127.0.0.1',
     SMTP_PORT: '1025',
     SMTP_FROM: 'noreply@example.com',
@@ -28,7 +28,7 @@ describe('AC-3: Server environment validation and secret strength enforcement', 
     STORAGE_ACCESS_KEY: 'valid_access_key_123',
     // 64-char valid hex
     STORAGE_SECRET_KEY: '8a7b6c5d4e3f2a1b0c9d8e7f6a5b4c3d2e1f0a9b8c7d6e5f4a3b2c1d0e9f8a7b',
-    STORAGE_BUCKET_UPLOADS: 'setline-uploads',
+    STORAGE_BUCKET_UPLOADS: 'ownlight-uploads',
     STORAGE_USE_SSL: 'false',
   };
 
@@ -271,7 +271,7 @@ describe('AC-3: Server environment validation and secret strength enforcement', 
   it('AC-3: validates database configuration options including SSL and timeouts', () => {
     const inputWithDbConfig = {
       ...validServerEnvInput,
-      DATABASE_MIGRATOR_URL: 'postgres://migrator:password@127.0.0.1:5432/setline_dev',
+      DATABASE_MIGRATOR_URL: 'postgres://migrator:password@127.0.0.1:5432/ownlight_dev',
       DB_MAX_CONNECTIONS: '25',
       DB_STATEMENT_TIMEOUT: '45',
       DB_SSL: 'require',
@@ -279,7 +279,7 @@ describe('AC-3: Server environment validation and secret strength enforcement', 
 
     const validated = validateServerEnv(inputWithDbConfig);
     expect(validated.DATABASE_MIGRATOR_URL).toBe(
-      'postgres://migrator:password@127.0.0.1:5432/setline_dev',
+      'postgres://migrator:password@127.0.0.1:5432/ownlight_dev',
     );
     expect(validated.DB_MAX_CONNECTIONS).toBe(25);
     expect(validated.DB_STATEMENT_TIMEOUT).toBe(45);

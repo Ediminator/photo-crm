@@ -1,5 +1,5 @@
 name: Feature Request
-description: Suggest an idea or enhancement for Setline
+description: Suggest an idea or enhancement for Ownlight
 title: 'feat: [short description of requested feature]'
 labels: ['enhancement']
 body:
@@ -21,7 +21,7 @@ body:
     attributes:
       label: Proposed Solution / Workflow
       description: Describe the solution you'd like to see, focusing on the photographer's or client's workflow.
-      placeholder: It would be great if Setline could...
+      placeholder: It would be great if Ownlight could...
     validations:
       required: true
   - type: textarea

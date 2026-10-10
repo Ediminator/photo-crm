@@ -5,13 +5,13 @@
 
 ## Context
 
-Setline is a self-hosted studio management platform for photographers and videographers (ADR-0003). As such, the application must store and serve large digital assets: high-resolution RAW images, client proofing deliverables, full-resolution JPEG galleries, compressed video clips, and generated PDF contracts and invoices.
+Ownlight is a self-hosted studio management platform for photographers and videographers (ADR-0003). As such, the application must store and serve large digital assets: high-resolution RAW images, client proofing deliverables, full-resolution JPEG galleries, compressed video clips, and generated PDF contracts and invoices.
 
 In line with ADR-0002, storage must be accessible via an S3-compatible API so that the application layer remains completely decoupled from physical disk layout. For local development and out-of-the-box self-hosting, we must supply an S3-compatible storage service in Docker Compose (`compose.dev.yml`).
 
 Recently, changes in the open-source object storage landscape have altered the trade-offs:
 
-1. **MinIO:** Changed license to GNU AGPL v3 in 2021 (compatible with Setline's AGPL v3). In 2023–2024, MinIO ceased publishing public community release notes and security advisories, deprecated standalone gateway mode, restricted several management features to enterprise tiers, and increased its container image size and idle memory footprint (~150–250 MB).
+1. **MinIO:** Changed license to GNU AGPL v3 in 2021 (compatible with Ownlight's AGPL v3). In 2023–2024, MinIO ceased publishing public community release notes and security advisories, deprecated standalone gateway mode, restricted several management features to enterprise tiers, and increased its container image size and idle memory footprint (~150–250 MB).
 2. **SeaweedFS:** Apache 2.0 licensed, distributed file system with native S3 API layer, optimized for fast handling of billions of small files and large video chunking. Moderate memory footprint (~40–80 MB).
 3. **Garage:** AGPL v3 licensed, developed by the French non-profit Deuxfleurs. Purpose-built for lightweight self-hosting across geographically dispersed nodes or modest single-node home servers (Synology NAS, low-cost VPS). Ultra-low memory footprint (<30 MB RAM) and minimal binary footprint.
 

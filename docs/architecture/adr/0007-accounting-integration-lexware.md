@@ -18,7 +18,7 @@ In Germany, Lexware Office (formerly _lexoffice_) is the leading certified cloud
 
 ## Decision
 
-We will integrate Setline with the **Lexware Office REST API v1** using a modular accounting connector architecture (`AccountingProvider`). Lexware Office serves as the primary GoBD and e-invoicing compliance solution for Setline in Phase 1.
+We will integrate Ownlight with the **Lexware Office REST API v1** using a modular accounting connector architecture (`AccountingProvider`). Lexware Office serves as the primary GoBD and e-invoicing compliance solution for Ownlight in Phase 1.
 
 ### 1. Connector Capabilities
 
@@ -26,7 +26,7 @@ The integration implements four core workflows:
 
 ```text
 ┌─────────────────────────────────┐                 ┌────────────────────────────────┐
-│            Setline            │                 │         Lexware Office         │
+│            Ownlight            │                 │         Lexware Office         │
 │  (Shoots, Contracts, Portal)    │                 │  (GoBD, E-Invoice, DATEV, Tax) │
 └────────────────┬────────────────┘                 └────────────────┬───────────────┘
                  │                                                   │
@@ -53,7 +53,7 @@ The integration implements four core workflows:
    - Accurately passes line items from packages/add-ons with applicable VAT rates (e.g., 19% standard, 7% copyright/licensing, or 0% §19 UStG note).
 3. **Sealed Document Retrieval for Client Portal:**
    - Fetches the finalized, tamper-proof invoice PDF/A-3 (including embedded ZUGFeRD / XRechnung XML) from Lexware Office via API.
-   - Stores the document reference and SHA-256 hash in Setline, exposing it read-only in the Client Portal (E9) for client download.
+   - Stores the document reference and SHA-256 hash in Ownlight, exposing it read-only in the Client Portal (E9) for client download.
 4. **Webhook Event Subscription & Payment Reconciliation:**
    - Subscribes to Lexware webhook event triggers:
      - `invoice.status.changed` (e.g. Draft -> Open -> Overdue)
@@ -88,7 +88,7 @@ The Lexware Office connector implements this interface as `LexwareOfficeProvider
    - Sensitive CRM data (personal shoot notes, questionnaire answers, family details, private image galleries) is never sent to the external accounting system.
 4. **GDPR Erasure vs. Statutory Retention (§147 AO):**
    - Under GDPR Art. 17(3)(b), statutory retention obligations supersede client deletion requests.
-   - When a client exercises their right to erasure in Setline, the operational CRM record is anonymized or soft-deleted, but linked accounting vouchers in Lexware remain preserved under GoBD statutory retention lock until the legal retention period expires.
+   - When a client exercises their right to erasure in Ownlight, the operational CRM record is anonymized or soft-deleted, but linked accounting vouchers in Lexware remain preserved under GoBD statutory retention lock until the legal retention period expires.
 
 ## Alternatives Considered
 
@@ -106,8 +106,8 @@ The Lexware Office connector implements this interface as `LexwareOfficeProvider
 
 - Resolves German GoBD and e-invoicing compliance cleanly for MVP Phase 1 with minimal legal risk.
 - Requires studios wanting automated invoicing to possess an active Lexware Office account and configure their API key.
-- Requires outbound HTTPS internet access from the Setline container to `api.lexoffice.io`.
-- Studios that do not use Lexware Office can operate Setline with the accounting integration disabled (proposals and contracts function normally).
+- Requires outbound HTTPS internet access from the Ownlight container to `api.lexoffice.io`.
+- Studios that do not use Lexware Office can operate Ownlight with the accounting integration disabled (proposals and contracts function normally).
 
 ## Security & Privacy Impact
 

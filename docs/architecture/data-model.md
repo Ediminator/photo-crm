@@ -1,6 +1,6 @@
 # Data Model & Schema Conventions
 
-This document establishes the architectural conventions and design rules for all database tables and entities in Setline. Every later schema addition or migration must conform to these rules.
+This document establishes the architectural conventions and design rules for all database tables and entities in Ownlight. Every later schema addition or migration must conform to these rules.
 
 ---
 

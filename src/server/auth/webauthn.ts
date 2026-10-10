@@ -28,13 +28,13 @@ export function getWebAuthnConfig(customBaseUrl?: string): WebAuthnConfig {
     return {
       rpId: parsed.hostname,
       origin: parsed.origin,
-      rpName: 'Setline',
+      rpName: 'Ownlight',
     };
   } catch {
     return {
       rpId: 'localhost',
       origin: 'http://localhost:3000',
-      rpName: 'Setline',
+      rpName: 'Ownlight',
     };
   }
 }
@@ -67,7 +67,7 @@ export function createRegistrationOptions(
   user: { id: string; email: string; name: string },
   challenge: string,
   rpId?: string,
-  rpName = 'Setline',
+  rpName = 'Ownlight',
 ) {
   const config = getWebAuthnConfig();
   const effectiveRpId = rpId ?? config.rpId;

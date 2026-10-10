@@ -35,7 +35,7 @@ describe('AC-8: Agent/Token Audit Event Recording and Attribution Metadata', () 
           actorId: 'agent-sub-1',
           action: 'agent.tool.invoked',
           targetType: 'repository',
-          targetId: 'setline',
+          targetId: 'ownlight',
           outcome: 'success',
           metadata: agentMetadata,
         },

@@ -27,7 +27,7 @@ describe('AC-11: API key authentication, scope enforcement, and revocation', () 
     await testDb.destroy();
   });
 
-  it('AC-11: creates API key with format setline_live_<hex> and authenticates matching scopes (200 OK equivalent)', async () => {
+  it('AC-11: creates API key with format ownlight_live_<hex> and authenticates matching scopes (200 OK equivalent)', async () => {
     const dbClient = testDb.db as unknown as DbClient;
 
     const [owner] = await dbClient
@@ -206,7 +206,7 @@ describe('AC-11: API key authentication, scope enforcement, and revocation', () 
 
     // 2. Unknown key
     const res3 = await verifyApiKey(
-      'setline_live_0000000000000000000000000000000000000000000000000000000000000000',
+      'ownlight_live_0000000000000000000000000000000000000000000000000000000000000000',
       dbClient,
     );
     expect(res3.valid).toBe(false);
@@ -266,12 +266,12 @@ describe('AC-11: API key authentication, scope enforcement, and revocation', () 
   });
 
   it('AC-11: hashBearerToken computes deterministic scrypt hash of high-entropy token', () => {
-    const raw = 'setline_live_0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
+    const raw = 'ownlight_live_0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
     const hash = hashBearerToken(raw);
     expect(hash).toBeDefined();
     expect(hash).toHaveLength(64);
     expect(hashBearerToken(raw)).toBe(hash);
     expect(hashApiKeyToken(raw)).toBe(hash);
-    expect(BEARER_TOKEN_PREFIX).toBe('setline_live_');
+    expect(BEARER_TOKEN_PREFIX).toBe('ownlight_live_');
   });
 });

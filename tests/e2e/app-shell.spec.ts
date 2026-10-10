@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
 
 const TEST_AUTH_COOKIE = {
-  name: 'setline_session',
+  name: 'ownlight_session',
   value: 'e2e-session-valid-token',
   url: 'http://localhost:3000',
 };

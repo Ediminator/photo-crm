@@ -11,7 +11,7 @@
 
 ## 2. Logger Architecture (`src/server/log.ts`)
 
-Setline standardizes on [Pino](https://getpino.io) for high-performance, asynchronous JSON logging.
+Ownlight standardizes on [Pino](https://getpino.io) for high-performance, asynchronous JSON logging.
 
 ```typescript
 import { logger, runWithRequestId } from '@/server/log';

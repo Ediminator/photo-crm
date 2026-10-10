@@ -1,5 +1,5 @@
 blank_issues_enabled: false
 contact_links:
   - name: Security Vulnerability Report
-    url: https://github.com/Ediminator/Setline/security/advisories/new
+    url: https://github.com/Ediminator/Ownlight/security/advisories/new
     about: Please report security vulnerabilities confidentially according to SECURITY.md. Do not open public issues for security vulnerabilities.

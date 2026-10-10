@@ -5,16 +5,16 @@ set -e
 # PostgreSQL Least-Privilege Role Initialization
 #
 # Roles:
-#  1. setline_migrator: Owns schema public, has DDL rights (CREATE, ALTER, DROP)
-#  2. setline_app: Runtime application role, has DML rights only (SELECT, INSERT,
+#  1. ownlight_migrator: Owns schema public, has DDL rights (CREATE, ALTER, DROP)
+#  2. ownlight_app: Runtime application role, has DML rights only (SELECT, INSERT,
 #     UPDATE, DELETE). Explicitly denied DDL / CREATE TABLE in public schema.
 # ==============================================================================
 
-POSTGRES_DB="${POSTGRES_DB:-setline_dev}"
+POSTGRES_DB="${POSTGRES_DB:-ownlight_dev}"
 POSTGRES_USER="${POSTGRES_USER:-postgres}"
-POSTGRES_APP_USER="${POSTGRES_APP_USER:-setline_app}"
+POSTGRES_APP_USER="${POSTGRES_APP_USER:-ownlight_app}"
 POSTGRES_APP_PASSWORD="${POSTGRES_APP_PASSWORD}"
-POSTGRES_MIGRATOR_USER="${POSTGRES_MIGRATOR_USER:-setline_migrator}"
+POSTGRES_MIGRATOR_USER="${POSTGRES_MIGRATOR_USER:-ownlight_migrator}"
 POSTGRES_MIGRATOR_PASSWORD="${POSTGRES_MIGRATOR_PASSWORD}"
 
 if [ -z "$POSTGRES_APP_PASSWORD" ] || [ -z "$POSTGRES_MIGRATOR_PASSWORD" ]; then

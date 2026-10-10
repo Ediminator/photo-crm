@@ -87,7 +87,7 @@ describe('AC-9: Server Actions Execution, Authorization, and Session Lifecycle',
 
     // Verify session cookie was set
     const sessionCookie =
-      mockCookiesStore.get('setline_session') ?? mockCookiesStore.get('__Secure-setline_session');
+      mockCookiesStore.get('ownlight_session') ?? mockCookiesStore.get('__Secure-ownlight_session');
     expect(sessionCookie).toBeDefined();
 
     // 3. getOwnerSessionInfoAction succeeds when cookie is present
@@ -245,7 +245,7 @@ describe('AC-9: Server Actions Execution, Authorization, and Session Lifecycle',
     expect(nonOwnerSession).toBeDefined();
     if (!nonOwnerSession) throw new Error('Expected nonOwnerSession to be defined');
 
-    mockCookiesStore.set('setline_session', nonOwnerSession.token);
+    mockCookiesStore.set('ownlight_session', nonOwnerSession.token);
 
     await expect(requireOwner({ client: dbClient })).rejects.toThrow(
       'Owner role required for this action.',
@@ -358,7 +358,7 @@ describe('AC-9: Server Actions Execution, Authorization, and Session Lifecycle',
     expect(signInRes.success).toBe(true);
 
     const rawCookieToken =
-      mockCookiesStore.get('setline_session') ?? mockCookiesStore.get('__Secure-setline_session');
+      mockCookiesStore.get('ownlight_session') ?? mockCookiesStore.get('__Secure-ownlight_session');
     expect(rawCookieToken).toBeDefined();
     expect(typeof rawCookieToken).toBe('string');
 

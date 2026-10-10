@@ -1,4 +1,4 @@
-# Security Baseline: Setline
+# Security Baseline: Ownlight
 
 This document establishes the mandatory security standards and controls for the application, based on **OWASP ASVS 5.0 (Application Security Verification Standard) Level 2** and modern Next.js/TypeScript architecture.
 
@@ -25,7 +25,7 @@ This document establishes the mandatory security standards and controls for the 
 ## 2. Access Control & Authorization (ASVS V8)
 
 - **Default Deny:** All endpoints, server actions, and route handlers require explicit authentication and authorization via `requireOwner()` or `requireAuth({ scopes })` unless explicitly designated in `PUBLIC_AUTH_ACTIONS` allowlist.
-- **Programmatic API Keys:** Scoped API tokens formatted as `setline_live_<32_bytes_hex>`. Displayed once to user and persisted only as SHA-256 hashes in `api_keys` table. Granular scopes (`clients:read`, `clients:write`, `projects:read`, `projects:write`, `settings:read`, `settings:write`). Route guard validates active session (all scopes) or matching key scope.
+- **Programmatic API Keys:** Scoped API tokens formatted as `ownlight_live_<32_bytes_hex>`. Displayed once to user and persisted only as SHA-256 hashes in `api_keys` table. Granular scopes (`clients:read`, `clients:write`, `projects:read`, `projects:write`, `settings:read`, `settings:write`). Route guard validates active session (all scopes) or matching key scope.
 - **Object-Level Scoping:** Bare IDs from client requests are never trusted. All database reads and writes must include ownership criteria:
   ```typescript
   // Example pattern in repository layer:

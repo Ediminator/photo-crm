@@ -146,8 +146,8 @@ export async function requireAuth(options: RequireAuthOptions = {}): Promise<Aut
         : (headerSource as Record<string, string | undefined>).cookie;
 
     if (cookieHeader) {
-      const secureMatch = /__Secure-setline_session=([^;]+)/.exec(cookieHeader);
-      const standardMatch = /setline_session=([^;]+)/.exec(cookieHeader);
+      const secureMatch = /__Secure-ownlight_session=([^;]+)/.exec(cookieHeader);
+      const standardMatch = /ownlight_session=([^;]+)/.exec(cookieHeader);
       const match = secureMatch ?? standardMatch;
       if (match?.[1]) {
         sessionToken = match[1];

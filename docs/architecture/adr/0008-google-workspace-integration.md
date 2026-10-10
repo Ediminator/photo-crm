@@ -8,7 +8,7 @@
 
 Independent photographers and videographers overwhelmingly rely on Google Workspace for custom-domain email (`@studio.com`), day-to-day scheduling, video discovery calls, and contact management on their mobile devices.
 
-Integrating Setline with Google Workspace provides significant workflow automation:
+Integrating Ownlight with Google Workspace provides significant workflow automation:
 
 1. Studio owners want single sign-on (SSO) with their existing studio Google account.
 2. Shoots and consultation meetings booked in the CRM should automatically reflect in Google Calendar, while personal blocks in Google Calendar should prevent CRM double-booking.
@@ -34,17 +34,17 @@ We will implement a modular, opt-in Google Workspace integration with strict bou
 - **Outgoing Email Sending (Epic E8):**
   - Standard authenticated SMTP or direct Gmail sending for transactional studio notifications (quotes, contracts, gallery links).
 - **Google Contacts Sync (Epic E1 - Opt-In):**
-  - One-way sync from Setline to the photographer's Google Contacts via the Google People API (`contacts` scope). Enables smartphone caller ID on shoot days.
+  - One-way sync from Ownlight to the photographer's Google Contacts via the Google People API (`contacts` scope). Enables smartphone caller ID on shoot days.
 
 ### 2. Explicitly Out of Scope
 
-- **Domain Registration & DNS Management:** Google Domains was discontinued in 2023 and transferred to Squarespace. Domain purchase and DNS record configuration belong at the registrar level (Cloudflare, Hetzner, Strato, Namecheap) and will not be managed inside Setline.
-- **Google Drive for Gallery/Video Delivery:** Google Drive API rate limits, lack of presigned chunked browser upload URLs, and poor video streaming performance make it unsuitable for high-resolution photo/video galleries. Setline will strictly use S3-compatible object storage (MinIO/Garage/Cloudflare R2) for media delivery.
+- **Domain Registration & DNS Management:** Google Domains was discontinued in 2023 and transferred to Squarespace. Domain purchase and DNS record configuration belong at the registrar level (Cloudflare, Hetzner, Strato, Namecheap) and will not be managed inside Ownlight.
+- **Google Drive for Gallery/Video Delivery:** Google Drive API rate limits, lack of presigned chunked browser upload URLs, and poor video streaming performance make it unsuitable for high-resolution photo/video galleries. Ownlight will strictly use S3-compatible object storage (MinIO/Garage/Cloudflare R2) for media delivery.
 - **Full Two-Way Gmail Inbox Scraping:** Parsing the studio owner's entire inbox into CRM relationship timelines is deferred to post-MVP due to complexity and broad permissions (`gmail.readonly`). MVP tracks outgoing transactional emails sent through the CRM.
 
 ### 3. Architecture for Self-Hosted Single Studio
 
-Because Setline is self-hosted single-studio, the photographer registers their own **Google Cloud Project** with internal or user-managed OAuth credentials. This gives the studio owner 100% control over their API quotas and completely avoids multi-tenant Google verification and CASA Tier-2/3 security audits.
+Because Ownlight is self-hosted single-studio, the photographer registers their own **Google Cloud Project** with internal or user-managed OAuth credentials. This gives the studio owner 100% control over their API quotas and completely avoids multi-tenant Google verification and CASA Tier-2/3 security audits.
 
 ## Security & Privacy Considerations
 

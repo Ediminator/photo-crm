@@ -3,7 +3,7 @@ import { eq } from 'drizzle-orm';
 import { db as defaultDb, type DbClient } from '@/server/db/client';
 import { apiKeys, type ApiKey } from '@/server/db/schema/auth';
 
-export const BEARER_TOKEN_PREFIX = 'setline_live_';
+export const BEARER_TOKEN_PREFIX = 'ownlight_live_';
 export const API_KEY_PREFIX = BEARER_TOKEN_PREFIX; // backward compatibility
 
 export interface CreateApiKeyInput {
@@ -30,7 +30,7 @@ export interface VerifyApiKeyResult {
   error?: 'not_found' | 'expired' | 'revoked' | 'invalid_format';
 }
 
-const TOKEN_KDF_SALT = 'setline_api_key_v1';
+const TOKEN_KDF_SALT = 'ownlight_api_key_v1';
 
 /**
  * Computes the deterministic KDF hash of a high-entropy bearer token for database storage and indexing.
@@ -42,7 +42,7 @@ export function hashBearerToken(tokenValue: string): string {
 export const hashApiKeyToken = hashBearerToken; // backward compatibility
 
 /**
- * Generates a cryptographically secure, scoped API token in format setline_live_<32_bytes_hex>.
+ * Generates a cryptographically secure, scoped API token in format ownlight_live_<32_bytes_hex>.
  * The raw token is returned once and NEVER stored unhashed.
  */
 export async function createApiKey({

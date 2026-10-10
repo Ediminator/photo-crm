@@ -13,24 +13,24 @@ Photographers and studio operators increasingly use AI agents (such as Antigravi
 - Initiating invoice and down-payment creation via Lexware Office
 - Reconciling banking and payment records
 
-To support both human terminal power-users and autonomous/semi-autonomous AI agents, Setline requires a first-class programmatic interface. However, providing raw database access or an unstructured API exposes high security and privacy risks (accidental PII exfiltration to LLMs, unauthorized modifications, lack of audit accountability).
+To support both human terminal power-users and autonomous/semi-autonomous AI agents, Ownlight requires a first-class programmatic interface. However, providing raw database access or an unstructured API exposes high security and privacy risks (accidental PII exfiltration to LLMs, unauthorized modifications, lack of audit accountability).
 
 ## Decision
 
-We will implement **both** a headless TypeScript CLI tool (`pcrm`) and a Model Context Protocol (MCP) server (`@setline/mcp`), built on top of a shared, typed domain service SDK.
+We will implement **both** a headless TypeScript CLI tool (`pcrm`) and a Model Context Protocol (MCP) server (`@ownlight/mcp`), built on top of a shared, typed domain service SDK.
 
 ### 1. Architectural Layers
 
 ```text
 ┌─────────────────────────────────┐   ┌──────────────────────────────────┐
-│          CLI (`pcrm`)           │   │    MCP Server (`@setline/mcp`) │
+│          CLI (`pcrm`)           │   │    MCP Server (`@ownlight/mcp`) │
 │     Human / Script Automation   │   │       AI Agent Assistants        │
 └────────────────┬────────────────┘   └─────────────────┬────────────────┘
                  │                                      │
                  └──────────────┬───────────────────────┘
                                 │
                  ┌──────────────▼───────────────────────┐
-                 │    Setline Core Domain SDK         │
+                 │    Ownlight Core Domain SDK         │
                  │   (Typed validation, services, Zod)  │
                  └──────────────┬───────────────────────┘
                                 │
@@ -44,9 +44,9 @@ We will implement **both** a headless TypeScript CLI tool (`pcrm`) and a Model C
                  └──────────────────────────────────────┘
 ```
 
-1. **Setline Core SDK:** Domain operations (clients, shoots, proposals, invoices, questionnaires) are encapsulated into reusable, typed TypeScript services with strict Zod schema validation.
+1. **Ownlight Core SDK:** Domain operations (clients, shoots, proposals, invoices, questionnaires) are encapsulated into reusable, typed TypeScript services with strict Zod schema validation.
 2. **Headless CLI (`pcrm`):** A command-line client supporting human-friendly text tables as well as machine-readable `--json` output, exit codes, and piping.
-3. **MCP Server (`@setline/mcp`):** Exposes CRM capabilities as standardized MCP Tools and Resources conformant to the Model Context Protocol specification.
+3. **MCP Server (`@ownlight/mcp`):** Exposes CRM capabilities as standardized MCP Tools and Resources conformant to the Model Context Protocol specification.
 
 ### 2. Transports
 
@@ -56,7 +56,7 @@ We will implement **both** a headless TypeScript CLI tool (`pcrm`) and a Model C
 ### 3. Security & Privacy Architecture
 
 1. **Scoped API Tokens:**
-   - Agent and CLI access requires dedicated, cryptographically secure API tokens (`setline_live_...`), separate from web user session cookies.
+   - Agent and CLI access requires dedicated, cryptographically secure API tokens (`ownlight_live_...`), separate from web user session cookies.
    - Tokens are hashed at rest (SHA-256) and displayed to the owner only once upon creation.
    - Granular, least-privilege permission scopes are enforced on every operation (e.g., `clients:read`, `clients:write`, `shoots:read`, `shoots:write`, `proposals:read`, `lexware:sync`, `invoices:read`).
 2. **PII Redaction by Default:**

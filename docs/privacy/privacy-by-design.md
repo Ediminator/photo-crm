@@ -1,6 +1,6 @@
 # Privacy by Design & Default (GDPR & CCPA)
 
-This architecture document guides the implementation of data protection principles (GDPR/DSGVO Art. 25, CCPA/CPRA) across all features of the Setline.
+This architecture document guides the implementation of data protection principles (GDPR/DSGVO Art. 25, CCPA/CPRA) across all features of the Ownlight.
 
 ---
 

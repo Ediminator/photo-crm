@@ -2,7 +2,7 @@
 
 ## 1. Overview & Principle
 
-Personal data must not be kept in an identifiable form for longer than is necessary for the purposes for which it is processed (GDPR Art. 5(1)(e) _Storage limitation_). Setline enforces declarative, automated data lifecycle policies with database-backed batch processing, atomic transactions, dry-run capabilities, and statutory legal hold overrides.
+Personal data must not be kept in an identifiable form for longer than is necessary for the purposes for which it is processed (GDPR Art. 5(1)(e) _Storage limitation_). Ownlight enforces declarative, automated data lifecycle policies with database-backed batch processing, atomic transactions, dry-run capabilities, and statutory legal hold overrides.
 
 ---
 

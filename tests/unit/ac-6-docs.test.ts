@@ -29,11 +29,11 @@ describe('AC-6: Local development documentation completeness', () => {
     expect(content).toMatch(/9000/);
   });
 
-  it('AC-6: documents database role separation (setline_app vs setline_migrator)', () => {
+  it('AC-6: documents database role separation (ownlight_app vs ownlight_migrator)', () => {
     const content = fs.readFileSync(docsPath, 'utf8');
 
-    expect(content).toContain('setline_app');
-    expect(content).toContain('setline_migrator');
+    expect(content).toContain('ownlight_app');
+    expect(content).toContain('ownlight_migrator');
     expect(content).toMatch(/least-privilege/i);
     expect(content).toMatch(/denied DDL|cannot CREATE/i);
   });

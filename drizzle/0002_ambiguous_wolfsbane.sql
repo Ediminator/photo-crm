@@ -18,7 +18,7 @@ CREATE INDEX "audit_events_action_idx" ON "audit_events" USING btree ("action");
 CREATE OR REPLACE FUNCTION protect_audit_events()
 RETURNS TRIGGER AS $$
 BEGIN
-  IF CURRENT_USER IN ('photo_crm_app', 'setline_app') OR SESSION_USER IN ('photo_crm_app', 'setline_app') THEN
+  IF CURRENT_USER IN ('photo_crm_app', 'ownlight_app') OR SESSION_USER IN ('photo_crm_app', 'ownlight_app') THEN
     RAISE EXCEPTION 'audit_events is append-only for application role %', CURRENT_USER;
   END IF;
   IF TG_OP = 'UPDATE' THEN
@@ -38,21 +38,21 @@ BEGIN
     REVOKE UPDATE, DELETE ON "audit_events" FROM "photo_crm_app";
     GRANT SELECT, INSERT ON "audit_events" TO "photo_crm_app";
   END IF;
-  IF EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = 'setline_app') THEN
-    REVOKE UPDATE, DELETE ON "audit_events" FROM "setline_app";
-    GRANT SELECT, INSERT ON "audit_events" TO "setline_app";
+  IF EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = 'ownlight_app') THEN
+    REVOKE UPDATE, DELETE ON "audit_events" FROM "ownlight_app";
+    GRANT SELECT, INSERT ON "audit_events" TO "ownlight_app";
   END IF;
   IF EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = 'photo_crm_migrator') THEN
     GRANT ALL ON "audit_events" TO "photo_crm_migrator";
   END IF;
-  IF EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = 'setline_migrator') THEN
-    GRANT ALL ON "audit_events" TO "setline_migrator";
+  IF EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = 'ownlight_migrator') THEN
+    GRANT ALL ON "audit_events" TO "ownlight_migrator";
   END IF;
   IF EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = 'photo_crm_retention') THEN
     GRANT SELECT, DELETE ON "audit_events" TO "photo_crm_retention";
   END IF;
-  IF EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = 'setline_retention') THEN
-    GRANT SELECT, DELETE ON "audit_events" TO "setline_retention";
+  IF EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = 'ownlight_retention') THEN
+    GRANT SELECT, DELETE ON "audit_events" TO "ownlight_retention";
   END IF;
 END
 $$;

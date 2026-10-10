@@ -64,15 +64,15 @@ vi.mock('@/server/auth/session', () => ({
   revokeSession: vi.fn(() => Promise.resolve()),
   verifySession: vi.fn(),
   getSessionCookieAttributes: vi.fn(() => ({
-    name: 'setline_session',
+    name: 'ownlight_session',
     httpOnly: true,
     secure: false,
     sameSite: 'lax',
     path: '/',
     maxAge: 86400,
   })),
-  SESSION_COOKIE_NAME: 'setline_session',
-  SECURE_SESSION_COOKIE_NAME: '__Secure-setline_session',
+  SESSION_COOKIE_NAME: 'ownlight_session',
+  SECURE_SESSION_COOKIE_NAME: '__Secure-ownlight_session',
 }));
 
 let mockRateLimitAllowed = true;
@@ -651,7 +651,7 @@ describe('MFA Server Actions Unit Tests', () => {
 
       expect(result.success).toBe(true);
       expect(result.data?.user.id).toBe('owner-uuid-1');
-      expect(mockCookiesStore.get('setline_session')).toBe('new-session-token');
+      expect(mockCookiesStore.get('ownlight_session')).toBe('new-session-token');
     });
 
     it('returns error if user for passkey credential is not found in db', async () => {
@@ -916,7 +916,7 @@ describe('MFA Server Actions Unit Tests', () => {
 
   describe('listActiveSessionsAction and revokeSessionByIdAction', () => {
     it('listActiveSessionsAction flags current session using cookie token', async () => {
-      mockCookiesStore.set('setline_session', 'token-active-1');
+      mockCookiesStore.set('ownlight_session', 'token-active-1');
       const now = new Date();
       const mockRows = [
         {

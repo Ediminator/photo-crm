@@ -11,7 +11,7 @@ describe('AC-5: PostgreSQL least-privilege role boundaries', () => {
     expect(fs.existsSync(sqlScriptPath)).toBe(true);
   });
 
-  it('AC-5: role initialization creates setline_migrator with DDL rights and no superuser', () => {
+  it('AC-5: role initialization creates ownlight_migrator with DDL rights and no superuser', () => {
     const shContent = fs.readFileSync(shScriptPath, 'utf8');
     const sqlContent = fs.readFileSync(sqlScriptPath, 'utf8');
 
@@ -27,10 +27,10 @@ describe('AC-5: PostgreSQL least-privilege role boundaries', () => {
     expect(shContent).toContain('ALTER SCHEMA public OWNER TO "${POSTGRES_MIGRATOR_USER}"');
 
     // Reference SQL verifies the same
-    expect(sqlContent).toContain('setline_migrator');
-    expect(sqlContent).toMatch(/CREATE ROLE setline_migrator WITH LOGIN/);
-    expect(sqlContent).toContain('GRANT USAGE, CREATE ON SCHEMA public TO setline_migrator');
-    expect(sqlContent).toContain('ALTER SCHEMA public OWNER TO setline_migrator');
+    expect(sqlContent).toContain('ownlight_migrator');
+    expect(sqlContent).toMatch(/CREATE ROLE ownlight_migrator WITH LOGIN/);
+    expect(sqlContent).toContain('GRANT USAGE, CREATE ON SCHEMA public TO ownlight_migrator');
+    expect(sqlContent).toContain('ALTER SCHEMA public OWNER TO ownlight_migrator');
   });
 
   it('AC-5: role initialization explicitly revokes CREATE on schema public from application role and PUBLIC', () => {
@@ -43,7 +43,7 @@ describe('AC-5: PostgreSQL least-privilege role boundaries', () => {
 
     // Explicitly revoke CREATE from application role
     expect(shContent).toContain('REVOKE CREATE ON SCHEMA public FROM "${POSTGRES_APP_USER}";');
-    expect(sqlContent).toContain('REVOKE CREATE ON SCHEMA public FROM setline_app;');
+    expect(sqlContent).toContain('REVOKE CREATE ON SCHEMA public FROM ownlight_app;');
   });
 
   it('AC-5: role initialization grants application role USAGE and default DML privileges', () => {
@@ -52,14 +52,14 @@ describe('AC-5: PostgreSQL least-privilege role boundaries', () => {
 
     // USAGE granted on schema public
     expect(shContent).toContain('GRANT USAGE ON SCHEMA public TO "${POSTGRES_APP_USER}";');
-    expect(sqlContent).toContain('GRANT USAGE ON SCHEMA public TO setline_app;');
+    expect(sqlContent).toContain('GRANT USAGE ON SCHEMA public TO ownlight_app;');
 
     // Default privileges: SELECT, INSERT, UPDATE, DELETE on tables
     expect(shContent).toMatch(
       /ALTER DEFAULT PRIVILEGES FOR ROLE "\$\{POSTGRES_MIGRATOR_USER\}" IN SCHEMA public\s+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO "\$\{POSTGRES_APP_USER\}";/,
     );
     expect(sqlContent).toMatch(
-      /ALTER DEFAULT PRIVILEGES FOR ROLE setline_migrator IN SCHEMA public\s+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO setline_app;/,
+      /ALTER DEFAULT PRIVILEGES FOR ROLE ownlight_migrator IN SCHEMA public\s+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO ownlight_app;/,
     );
 
     // Default privileges: USAGE, SELECT on sequences
@@ -67,7 +67,7 @@ describe('AC-5: PostgreSQL least-privilege role boundaries', () => {
       /ALTER DEFAULT PRIVILEGES FOR ROLE "\$\{POSTGRES_MIGRATOR_USER\}" IN SCHEMA public\s+GRANT USAGE, SELECT ON SEQUENCES TO "\$\{POSTGRES_APP_USER\}";/,
     );
     expect(sqlContent).toMatch(
-      /ALTER DEFAULT PRIVILEGES FOR ROLE setline_migrator IN SCHEMA public\s+GRANT USAGE, SELECT ON SEQUENCES TO setline_app;/,
+      /ALTER DEFAULT PRIVILEGES FOR ROLE ownlight_migrator IN SCHEMA public\s+GRANT USAGE, SELECT ON SEQUENCES TO ownlight_app;/,
     );
   });
 

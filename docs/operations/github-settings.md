@@ -1,6 +1,6 @@
 # GitHub Repository Settings & Security Checklist
 
-This document is the operational guide for the human repository administrator to configure GitHub repository security, branch protection rulesets, secret scanning, code scanning, and dependency automation for `setline`.
+This document is the operational guide for the human repository administrator to configure GitHub repository security, branch protection rulesets, secret scanning, code scanning, and dependency automation for `ownlight`.
 
 > [!IMPORTANT]
 > **Human Authority Directive:** Autonomous agents must never modify repository settings, secrets, webhooks, or branch protection via the GitHub API or CLI. The human repository owner applies these configurations manually.

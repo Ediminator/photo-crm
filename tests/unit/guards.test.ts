@@ -6,7 +6,7 @@ vi.mock('next/headers', () => ({
   headers: () =>
     Promise.resolve({
       get: (name: string) =>
-        name.toLowerCase() === 'authorization' ? 'Bearer setline_live_from_next_headers' : null,
+        name.toLowerCase() === 'authorization' ? 'Bearer ownlight_live_from_next_headers' : null,
     }),
   cookies: () => Promise.resolve({ get: () => undefined }),
 }));
@@ -18,13 +18,13 @@ describe('Authentication and authorization guards (guards.ts)', () => {
   describe('extractBearerToken', () => {
     it('extracts Bearer token from Headers instance', () => {
       const h = new Headers();
-      h.set('authorization', 'Bearer setline_live_123456');
-      expect(extractBearerToken(h)).toBe('setline_live_123456');
+      h.set('authorization', 'Bearer ownlight_live_123456');
+      expect(extractBearerToken(h)).toBe('ownlight_live_123456');
     });
 
     it('extracts Bearer token from plain Record with Authorization key', () => {
-      expect(extractBearerToken({ Authorization: 'Bearer setline_live_654321' })).toBe(
-        'setline_live_654321',
+      expect(extractBearerToken({ Authorization: 'Bearer ownlight_live_654321' })).toBe(
+        'ownlight_live_654321',
       );
     });
 
@@ -56,7 +56,7 @@ describe('Authentication and authorization guards (guards.ts)', () => {
     });
 
     it('I1-S07: automatically falls back to next/headers headers() when options.headers is omitted', async () => {
-      // Calling requireAuth() without options.headers will pick up 'Bearer setline_live_from_next_headers'
+      // Calling requireAuth() without options.headers will pick up 'Bearer ownlight_live_from_next_headers'
       // and fail on invalid API key verification rather than 'No session or API key provided.'
       await expect(
         requireAuth({
@@ -76,7 +76,7 @@ describe('Authentication and authorization guards (guards.ts)', () => {
     it('extracts session cookie from headers object and throws when invalid', async () => {
       await expect(
         requireAuth({
-          headers: { cookie: 'setline_session=cookie-session-token' },
+          headers: { cookie: 'ownlight_session=cookie-session-token' },
           client: {
             select: () => ({
               from: () => ({

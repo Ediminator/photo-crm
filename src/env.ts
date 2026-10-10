@@ -185,12 +185,12 @@ export const serverSchema = z.object({
     .optional(),
 
   // Local dev credentials & ports (Docker Compose)
-  POSTGRES_DB: z.string().default('setline_dev'),
+  POSTGRES_DB: z.string().default('ownlight_dev'),
   POSTGRES_USER: z.string().default('postgres'),
   POSTGRES_PASSWORD: z.string().optional(),
-  POSTGRES_APP_USER: z.string().default('setline_app'),
+  POSTGRES_APP_USER: z.string().default('ownlight_app'),
   POSTGRES_APP_PASSWORD: z.string().optional(),
-  POSTGRES_MIGRATOR_USER: z.string().default('setline_migrator'),
+  POSTGRES_MIGRATOR_USER: z.string().default('ownlight_migrator'),
   POSTGRES_MIGRATOR_PASSWORD: z.string().optional(),
   POSTGRES_PORT: z.coerce.number().int().default(5432),
 
@@ -229,7 +229,7 @@ export const serverSchema = z.object({
         });
       }
     }),
-  STORAGE_BUCKET_UPLOADS: z.string().min(1).default('setline-uploads'),
+  STORAGE_BUCKET_UPLOADS: z.string().min(1).default('ownlight-uploads'),
   STORAGE_USE_SSL: z
     .enum(['true', 'false'])
     .default('false')
