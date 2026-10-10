@@ -35,6 +35,12 @@ export const session = pgTable('session', {
   userId: uuid('user_id')
     .notNull()
     .references(() => user.id, { onDelete: 'cascade' }),
+  lastReauthenticatedAt: timestamp('last_reauthenticated_at', {
+    withTimezone: true,
+    mode: 'date',
+  })
+    .notNull()
+    .defaultNow(),
 });
 
 /**
@@ -66,7 +72,7 @@ export const account = pgTable('account', {
 
 /**
  * Better-Auth verification table
- * Single-use tokens for email verification and password reset.
+ * Single-use tokens for email verification, password reset, and MFA challenge tickets.
  */
 export const verification = pgTable('verification', {
   id: uuid('id')
@@ -120,6 +126,63 @@ export const rateLimits = pgTable('rate_limits', {
   expiresAt: timestamp('expires_at', { withTimezone: true, mode: 'date' }).notNull(),
 });
 
+/**
+ * TOTP credentials table (TASK-0008)
+ * Stores encrypted TOTP shared secrets and replay prevention step counters.
+ */
+export const totpCredential = pgTable('totp_credential', {
+  id: uuid('id')
+    .primaryKey()
+    .$defaultFn(() => generateUuidV7()),
+  userId: uuid('user_id')
+    .notNull()
+    .unique()
+    .references(() => user.id, { onDelete: 'cascade' }),
+  secretEncrypted: text('secret_encrypted').notNull(),
+  verified: boolean('verified').notNull().default(false),
+  lastUsedStep: integer('last_used_step').notNull().default(0),
+  createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true, mode: 'date' }).notNull().defaultNow(),
+});
+
+/**
+ * Single-use recovery codes table (TASK-0008)
+ * 10 backup codes generated at enrolment, stored hashed, invalidated on regenerate.
+ */
+export const recoveryCode = pgTable('recovery_code', {
+  id: uuid('id')
+    .primaryKey()
+    .$defaultFn(() => generateUuidV7()),
+  userId: uuid('user_id')
+    .notNull()
+    .references(() => user.id, { onDelete: 'cascade' }),
+  codeHash: varchar('code_hash', { length: 128 }).notNull(),
+  salt: varchar('salt', { length: 64 }).notNull(),
+  usedAt: timestamp('used_at', { withTimezone: true, mode: 'date' }),
+  createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' }).notNull().defaultNow(),
+});
+
+/**
+ * Passkeys (WebAuthn credentials) table (TASK-0008)
+ * Stores public keys, credential IDs, and sign counters for passwordless MFA.
+ */
+export const passkeyCredential = pgTable('passkey_credential', {
+  id: uuid('id')
+    .primaryKey()
+    .$defaultFn(() => generateUuidV7()),
+  userId: uuid('user_id')
+    .notNull()
+    .references(() => user.id, { onDelete: 'cascade' }),
+  name: varchar('name', { length: 255 }).notNull(),
+  credentialId: varchar('credential_id', { length: 512 }).notNull().unique(),
+  publicKey: text('public_key').notNull(),
+  counter: integer('counter').notNull().default(0),
+  transports: text('transports'),
+  createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true, mode: 'date' }).notNull().defaultNow(),
+  lastUsedAt: timestamp('last_used_at', { withTimezone: true, mode: 'date' }),
+});
+
 export type User = typeof user.$inferSelect;
 export type NewUser = typeof user.$inferInsert;
 export type Session = typeof session.$inferSelect;
@@ -132,3 +195,9 @@ export type ApiKey = typeof apiKeys.$inferSelect;
 export type NewApiKey = typeof apiKeys.$inferInsert;
 export type RateLimit = typeof rateLimits.$inferSelect;
 export type NewRateLimit = typeof rateLimits.$inferInsert;
+export type TotpCredential = typeof totpCredential.$inferSelect;
+export type NewTotpCredential = typeof totpCredential.$inferInsert;
+export type RecoveryCode = typeof recoveryCode.$inferSelect;
+export type NewRecoveryCode = typeof recoveryCode.$inferInsert;
+export type PasskeyCredential = typeof passkeyCredential.$inferSelect;
+export type NewPasskeyCredential = typeof passkeyCredential.$inferInsert;

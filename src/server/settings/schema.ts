@@ -46,6 +46,8 @@ export const updateStudioSettingsSchema = z
       .refine((val) => SUPPORTED_CURRENCIES.has(val), {
         message: 'Invalid ISO 4217 currency code.',
       }),
+    mfa_required: z.boolean().optional(),
+    mfa_postponed_until: z.date().nullable().optional(),
   })
   .strict();
 

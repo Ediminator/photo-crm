@@ -18,6 +18,13 @@ export const ACTION_METADATA_ALLOWLIST = new Map<string, readonly string[]>([
   ['auth.sign_out.success', ['session_id', 'everywhere']],
   ['auth.password_reset.requested', ['rate_limit_bucket', 'ip_anonymized']],
   ['auth.password_reset.completed', ['duration_ms']],
+  ['auth.mfa.totp_enabled', ['user_id', 'ip_anonymized']],
+  ['auth.mfa.totp_disabled', ['user_id', 'ip_anonymized']],
+  ['auth.mfa.recovery_code_used', ['user_id', 'code_id', 'ip_anonymized']],
+  ['auth.mfa.recovery_codes_regenerated', ['user_id', 'count', 'ip_anonymized']],
+  ['auth.mfa.passkey_registered', ['user_id', 'passkey_id', 'passkey_name', 'ip_anonymized']],
+  ['auth.mfa.passkey_deleted', ['user_id', 'passkey_id', 'ip_anonymized']],
+  ['auth.mfa.postponed', ['user_id', 'postponed_until', 'ip_anonymized']],
   [
     'retention.sweep.completed',
     [

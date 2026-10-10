@@ -10,9 +10,13 @@ This document establishes the mandatory security standards and controls for the 
 - **Owner Bootstrap:** Protected by `SETUP_TOKEN` with entropy verification (≥ 32 random bytes / 64 hex characters), constant-time comparison (`crypto.timingSafeEqual`), PostgreSQL transactional advisory lock (`pg_advisory_xact_lock(746869)`), permanently disabled with 404 once owner user exists.
 - **Password Policy:** Minimum 12 characters, up to 1024 characters. Supports spaces and emoji. No composition rules. Checked offline against a bundled dictionary of 7,158 common/breached passwords (`src/server/auth/passwords/common-passwords.json`).
 - **Password Hashing:** OWASP-compliant `argon2id` via `@node-rs/argon2`: `memoryCost=65536` (64 MB), `timeCost=3`, `parallelism=4`, key length 32 bytes.
-- **Email Verification & Password Reset:** Handled via SMTP (`nodemailer`). Reset tokens expire in ≤ 30 minutes, are single-use, and are stored hashed with SHA-256 (`verification` table). Requests return identical generic responses regardless of account existence to prevent user enumeration.
-- **Multi-Factor Authentication (MFA):** TOTP (RFC 6238) and WebAuthn/Passkeys (deferred to TASK-0008).
-- **Cookies:** `HttpOnly`, `SameSite=Lax`, `__Secure-photo_crm_session` in production (`photo_crm_session` in dev), with `Path=/`.
+- **Multi-Factor Authentication (MFA):**
+  - **TOTP (RFC 6238):** 6-digit codes, 30-second step, SHA-1 HMAC, ±1 window tolerance. Secrets encrypted at rest using AES-256-GCM with keys strictly derived from `AUTH_SECRET`. Replay prevention via monotonic `last_used_step` tracking. QR codes rendered via local vector SVG with accessible manual secret alternative.
+  - **WebAuthn / Passkeys:** FIDO2 passkeys for passwordless authentication using `@simplewebauthn/server` helpers and Web Crypto. Validates origin, RP ID, challenge, attestation/assertion signatures, and monotonic signature counter.
+  - **Single-Use Recovery Codes:** 10 cryptographically random codes (`xxxx-xxxx`) displayed once, stored securely using scrypt with unique high-entropy salts.
+  - **Step-up Re-authentication:** Sensitive operations (TOTP disable, recovery code regeneration, last passkey deletion) enforce master password confirmation within a 5-minute freshness window (`last_reauthenticated_at`).
+  - **Studio Enforcement:** Studio-level mandatory MFA policy (`mfa_required`) with grace period postponement (`mfa_postponed_until` up to 7 days).
+  - **Rate Limiting:** Dedicated MFA rate limits (5 failures / 15 min per account, 20 failures / 15 min per IP).
 - **Session Lifecycle:** Rotated on sign-in and privilege change to prevent session fixation. Configurable idle timeout (default 7 days) and absolute timeout (30 days). Server-side invalidation (`revokeSession`) and global revocation (`signOutEverywhere` invalidates all user sessions).
 - **Client Portal Access:** Expiring (≤ 15 min) single-use magic links, or scoped, revocable per-project tokens stored hashed with SHA-256.
 

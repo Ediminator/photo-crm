@@ -1,7 +1,10 @@
-import { headers } from 'next/headers';
+import { headers, cookies } from 'next/headers';
 import type { ReactNode } from 'react';
-import { notFound } from 'next/navigation';
+import { notFound, redirect } from 'next/navigation';
 import { hasLocale, NextIntlClientProvider } from 'next-intl';
+
+const SESSION_COOKIE_NAME = 'photo_crm_session';
+const SECURE_SESSION_COOKIE_NAME = '__Secure-photo_crm_session';
 import { routing } from '@/i18n/routing';
 import { geistSans, geistMono } from '@/app/fonts';
 import { ThemeProvider } from '@/components/theme/theme-provider';
@@ -50,6 +53,30 @@ export default async function LocaleLayout({ children, params }: LocaleLayoutPro
   } catch {
     nonce = undefined;
     isAuthRoute = false;
+  }
+
+  // Check MFA forced enrolment (AC-8)
+  let enforcementRedirect: string | null = null;
+  if (!isAuthRoute) {
+    try {
+      const cookieStore = await cookies();
+      const sessionToken =
+        cookieStore.get(SECURE_SESSION_COOKIE_NAME)?.value ??
+        cookieStore.get(SESSION_COOKIE_NAME)?.value;
+
+      if (sessionToken) {
+        const { checkMfaEnforcement } = await import('@/server/auth/mfa-enforcement');
+        const headersList = await headers();
+        const pathnameHeader = headersList.get('x-pathname') ?? '';
+        enforcementRedirect = await checkMfaEnforcement(locale, pathnameHeader, sessionToken);
+      }
+    } catch {
+      // Ignore layout inspection failures
+    }
+  }
+
+  if (enforcementRedirect) {
+    redirect(enforcementRedirect);
   }
 
   return (

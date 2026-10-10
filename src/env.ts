@@ -305,6 +305,13 @@ export function resetEnvCache(): void {
   cachedServerEnv = null;
 }
 
+const NUMERIC_ENV_DEFAULTS: Record<string, number> = {
+  PORT: 3000,
+  RETENTION_PERIOD_MONTHS: 24,
+  DB_MAX_CONNECTIONS: 10,
+  DB_STATEMENT_TIMEOUT: 30,
+};
+
 /**
  * Server environment proxy.
  * Blocks access if imported in browser / client runtime.
@@ -315,6 +322,14 @@ export const env: ServerEnv = new Proxy({} as ServerEnv, {
       throw new Error(
         'Server environment variables cannot be accessed on the client. Only NEXT_PUBLIC_* variables are accessible.',
       );
+    }
+    if (process.env.SKIP_ENV_VALIDATION === 'true') {
+      const defaultNum = NUMERIC_ENV_DEFAULTS[prop];
+      if (defaultNum !== undefined) {
+        const raw = Number(process.env[prop]);
+        return Number.isFinite(raw) && raw > 0 ? raw : defaultNum;
+      }
+      return process.env[prop] ?? '';
     }
     return getServerEnv()[prop as keyof ServerEnv];
   },

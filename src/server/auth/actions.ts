@@ -2,9 +2,17 @@
 
 import 'server-only';
 import { cookies, headers } from 'next/headers';
-import { eq } from 'drizzle-orm';
+import crypto from 'node:crypto';
+import { eq, and } from 'drizzle-orm';
 import { db, type DbClient } from '@/server/db/client';
-import { user, account } from '@/server/db/schema/auth';
+import {
+  user,
+  account,
+  verification,
+  totpCredential,
+  passkeyCredential,
+} from '@/server/db/schema/auth';
+import { getStudioSettings } from '@/server/settings/repo';
 import { verifyPasswordArgon2id, validatePasswordPolicy } from './passwords/policy';
 import {
   checkSignInRateLimit,
@@ -176,6 +184,13 @@ async function recordSignInAuditFailure(ip: string, client: DbClient): Promise<v
   }
 }
 
+export interface SignInResult {
+  user: { id: string; email: string; name: string };
+  mfaRequired?: boolean;
+  mfaTicket?: string;
+  mfaEnforced?: boolean;
+}
+
 /**
  * Sign In Action (Public allowlisted; guarded by database-backed rate limiting).
  */
@@ -185,7 +200,7 @@ export async function signInAction(
     password: string;
   },
   client: DbClient = db,
-): Promise<ActionResult<{ user: { id: string; email: string; name: string } }>> {
+): Promise<ActionResult<SignInResult>> {
   const normalizedEmail = formData.email.toLowerCase().trim();
   const ip = await getClientIp();
 
@@ -253,6 +268,41 @@ export async function signInAction(
   // 5. Successful authentication
   await recordSignInSuccess(normalizedEmail, client);
 
+  // 5b. Multi-Factor Authentication enforcement (AC-2)
+  // If TOTP is active on this account, challenge for second factor before establishing session
+  const activeTotp = await client
+    .select()
+    .from(totpCredential)
+    .where(and(eq(totpCredential.userId, existingUser.id), eq(totpCredential.verified, true)))
+    .limit(1);
+
+  if (activeTotp.length > 0) {
+    const mfaTicket = crypto.randomBytes(32).toString('hex');
+    const now = new Date();
+    const expiresAt = new Date(now.getTime() + 5 * 60 * 1000);
+
+    await client.insert(verification).values({
+      identifier: `mfa_ticket:${mfaTicket}`,
+      value: existingUser.id,
+      expiresAt,
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    return {
+      success: true,
+      data: {
+        user: {
+          id: existingUser.id,
+          email: existingUser.email,
+          name: existingUser.name,
+        },
+        mfaRequired: true,
+        mfaTicket,
+      },
+    };
+  }
+
   // Retrieve any pre-existing cookie to rotate session
   let oldToken: string | undefined;
   try {
@@ -290,6 +340,28 @@ export async function signInAction(
     // Non-fatal if audit logging encounters a transient error
   }
 
+  let mfaEnforced = false;
+  try {
+    const settings = await getStudioSettings(client);
+    if (settings.mfa_required) {
+      const now = Date.now();
+      const postponementExpired =
+        !settings.mfa_postponed_until || settings.mfa_postponed_until.getTime() <= now;
+      if (postponementExpired) {
+        const passkeys = await client
+          .select()
+          .from(passkeyCredential)
+          .where(eq(passkeyCredential.userId, existingUser.id))
+          .limit(1);
+        if (passkeys.length === 0) {
+          mfaEnforced = true;
+        }
+      }
+    }
+  } catch {
+    // Non-fatal if settings query encounters a transient error
+  }
+
   return {
     success: true,
     data: {
@@ -298,6 +370,7 @@ export async function signInAction(
         email: existingUser.email,
         name: existingUser.name,
       },
+      mfaEnforced,
     },
   };
 }
