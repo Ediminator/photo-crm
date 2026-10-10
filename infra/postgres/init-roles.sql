@@ -50,3 +50,13 @@ ALTER DEFAULT PRIVILEGES FOR ROLE photo_crm_migrator IN SCHEMA public
 
 ALTER DEFAULT PRIVILEGES FOR ROLE photo_crm_migrator IN SCHEMA public
   GRANT USAGE, SELECT ON SEQUENCES TO photo_crm_app;
+
+-- 9. Enforce append-only permissions on audit_events table if it exists
+DO $$
+BEGIN
+  IF EXISTS (SELECT FROM pg_catalog.pg_tables WHERE schemaname = 'public' AND tablename = 'audit_events') THEN
+    REVOKE UPDATE, DELETE ON audit_events FROM photo_crm_app;
+    GRANT SELECT, INSERT ON audit_events TO photo_crm_app;
+  END IF;
+END
+$$;

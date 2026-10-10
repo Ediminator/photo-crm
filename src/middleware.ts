@@ -85,6 +85,7 @@ function applySecurityHeaders(
   cspHeader: string,
   nonce: string,
   isProd: boolean,
+  requestId?: string,
 ): void {
   response.headers.set('Content-Security-Policy', cspHeader);
   response.headers.set('x-nonce', nonce);
@@ -93,6 +94,10 @@ function applySecurityHeaders(
   response.headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
   response.headers.set('Cross-Origin-Opener-Policy', 'same-origin');
   response.headers.set('X-Frame-Options', 'DENY');
+
+  if (requestId) {
+    response.headers.set('X-Request-Id', requestId);
+  }
 
   if (isProd) {
     response.headers.set(
@@ -106,10 +111,17 @@ export default function middleware(request: NextRequest): NextResponse {
   const { pathname } = request.nextUrl;
   const isProd = process.env.NODE_ENV === 'production';
 
-  // 1. Generate cryptographically random 16-byte base64 nonce for CSP (strict-dynamic)
+  // 1. Correlation ID: propagate incoming x-request-id or generate new UUID
+  const incomingRequestId = request.headers.get('x-request-id');
+  const requestId =
+    incomingRequestId && incomingRequestId.trim().length > 0 && incomingRequestId.length <= 128
+      ? incomingRequestId.trim()
+      : crypto.randomUUID();
+
+  // 2. Generate cryptographically random 16-byte base64 nonce for CSP (strict-dynamic)
   const nonce = generateNonce();
 
-  // 2. Build Content Security Policy header adhering to ASVS 5.0 V3
+  // 3. Build Content Security Policy header adhering to ASVS 5.0 V3
   const cspHeader = `
     default-src 'self';
     script-src 'self' 'nonce-${nonce}' 'strict-dynamic';
@@ -124,32 +136,33 @@ export default function middleware(request: NextRequest): NextResponse {
     .replace(/\s{2,}/g, ' ')
     .trim();
 
-  // 3. Route metadata & session inspection
+  // 4. Route metadata & session inspection
   const authenticated = hasValidSessionCookie(request);
   const isPublic = isPublicPath(pathname);
 
-  // 4. Pass nonce and metadata to request headers so React / Next.js can read them in server components
+  // 5. Pass nonce, metadata, and correlation ID to request headers
   const requestHeaders = new Headers(request.headers);
   requestHeaders.set('x-nonce', nonce);
   requestHeaders.set('Content-Security-Policy', cspHeader);
   requestHeaders.set('x-pathname', pathname);
+  requestHeaders.set('x-request-id', requestId);
   if (isPublic) {
     requestHeaders.set('x-is-auth-route', '1');
   }
 
-  // 5. Root path locale negotiation: delegate '/' to intlMiddleware first
+  // 6. Root path locale negotiation: delegate '/' to intlMiddleware first
   if (pathname === '/') {
     const response = intlMiddleware(
       new NextRequest(request, {
         headers: requestHeaders,
       }),
     );
-    applySecurityHeaders(response, cspHeader, nonce, isProd);
+    applySecurityHeaders(response, cspHeader, nonce, isProd, requestId);
     response.headers.set('x-pathname', pathname);
     return response;
   }
 
-  // 6. Route protection: redirect unauthenticated requests to protected app routes
+  // 7. Route protection: redirect unauthenticated requests to protected app routes
   if (!isPublic && !authenticated) {
     const locale = extractLocale(pathname);
     const signInUrl = new URL(`/${locale}/sign-in`, request.url);
@@ -157,21 +170,22 @@ export default function middleware(request: NextRequest): NextResponse {
       signInUrl.searchParams.set('callbackUrl', pathname);
     }
     const redirectResponse = NextResponse.redirect(signInUrl);
-    applySecurityHeaders(redirectResponse, cspHeader, nonce, isProd);
+    applySecurityHeaders(redirectResponse, cspHeader, nonce, isProd, requestId);
     return redirectResponse;
   }
 
-  // 7. Delegate to next-intl middleware for locale negotiation
+  // 8. Delegate to next-intl middleware for locale negotiation
   const response = intlMiddleware(
     new NextRequest(request, {
       headers: requestHeaders,
     }),
   );
 
-  // 8. Apply mandatory security headers and route metadata
-  applySecurityHeaders(response, cspHeader, nonce, isProd);
+  // 9. Apply mandatory security headers, correlation ID and route metadata
+  applySecurityHeaders(response, cspHeader, nonce, isProd, requestId);
   response.headers.set('x-pathname', pathname);
   response.headers.set('x-middleware-request-x-pathname', pathname);
+  response.headers.set('x-middleware-request-x-request-id', requestId);
   if (isPublic) {
     response.headers.set('x-is-auth-route', '1');
     response.headers.set('x-middleware-request-x-is-auth-route', '1');

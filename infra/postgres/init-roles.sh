@@ -70,6 +70,16 @@ psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-E
 
     ALTER DEFAULT PRIVILEGES FOR ROLE "${POSTGRES_MIGRATOR_USER}" IN SCHEMA public
       GRANT USAGE, SELECT ON SEQUENCES TO "${POSTGRES_APP_USER}";
+
+    -- 9. Enforce append-only permissions on audit_events table if it exists
+    DO \$\$
+    BEGIN
+      IF EXISTS (SELECT FROM pg_catalog.pg_tables WHERE schemaname = 'public' AND tablename = 'audit_events') THEN
+        REVOKE UPDATE, DELETE ON audit_events FROM "${POSTGRES_APP_USER}";
+        GRANT SELECT, INSERT ON audit_events TO "${POSTGRES_APP_USER}";
+      END IF;
+    END
+    \$\$;
 EOSQL
 
 echo "PostgreSQL role separation initialized successfully: ${POSTGRES_MIGRATOR_USER} (DDL), ${POSTGRES_APP_USER} (DML-only)."

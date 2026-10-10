@@ -1,0 +1,91 @@
+import { logger } from '@/server/log';
+import { type ActorType, AuditMetadataValidationError } from './types';
+
+/**
+ * Standard agent and token attribution metadata fields (TASK-0007).
+ */
+export const AGENT_ATTRIBUTION_KEYS = [
+  'token_id',
+  'tool_name',
+  'command_name',
+  'args_hash',
+] as const;
+
+export const ACTION_METADATA_ALLOWLIST = new Map<string, readonly string[]>([
+  ['auth.setup.completed', ['owner_id', 'setup_method', 'ip_anonymized']],
+  ['auth.sign_in.success', ['session_id', 'auth_method', 'ip_anonymized']],
+  ['auth.sign_in.failure', ['failure_reason', 'ip_anonymized']],
+  ['auth.sign_out.success', ['session_id', 'everywhere']],
+  ['auth.password_reset.requested', ['rate_limit_bucket', 'ip_anonymized']],
+  ['auth.password_reset.completed', ['duration_ms']],
+  [
+    'retention.sweep.completed',
+    [
+      'policy_id',
+      'scanned_count',
+      'deleted_count',
+      'held_count',
+      'dry_run',
+      'duration_ms',
+      'policies',
+    ],
+  ],
+  ['agent.tool.invoked', [...AGENT_ATTRIBUTION_KEYS, 'status', 'duration_ms']],
+  ['agent.command.executed', [...AGENT_ATTRIBUTION_KEYS, 'exit_code', 'duration_ms']],
+]);
+
+/**
+ * Validates metadata keys against the action's allowlist.
+ * In development and test environments: throws AuditMetadataValidationError on unknown keys.
+ * In production: drops unknown keys, logs a warning, and returns the sanitized object.
+ */
+export function validateAndSanitizeMetadata(
+  action: string,
+  actorType: ActorType,
+  metadata?: Record<string, unknown> | null,
+): Record<string, unknown> | null {
+  if (!metadata || typeof metadata !== 'object' || Object.keys(metadata).length === 0) {
+    return null;
+  }
+
+  // 1. Compute allowed keys set
+  const baseAllowed = ACTION_METADATA_ALLOWLIST.get(action) ?? [];
+  const allowedSet = new Set<string>(baseAllowed);
+
+  // If actor is an agent or token, always permit agent attribution fields
+  if (actorType === 'agent' || actorType === 'token') {
+    for (const key of AGENT_ATTRIBUTION_KEYS) {
+      allowedSet.add(key);
+    }
+  }
+
+  // 2. Identify forbidden keys
+  const keys = Object.keys(metadata);
+  const forbiddenKeys = keys.filter((key) => !allowedSet.has(key));
+
+  if (forbiddenKeys.length === 0) {
+    return metadata;
+  }
+
+  // 3. Dev / Test: fail fast with typed error
+  const isProd = process.env.NODE_ENV === 'production';
+  if (!isProd) {
+    throw new AuditMetadataValidationError(action, forbiddenKeys);
+  }
+
+  // 4. Production: drop unauthorized keys and warn
+  logger.warn(
+    {
+      action,
+      actorType,
+      droppedKeys: forbiddenKeys,
+    },
+    'Dropped unauthorized audit metadata keys in production',
+  );
+
+  const sanitized = Object.fromEntries(
+    Object.entries(metadata).filter(([key]) => allowedSet.has(key)),
+  );
+
+  return Object.keys(sanitized).length > 0 ? sanitized : null;
+}
