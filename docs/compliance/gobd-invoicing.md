@@ -1,6 +1,6 @@
 # Invoicing Compliance Blueprint: GoBD, §14 UStG & E-Invoicing
 
-This document outlines the architectural strategy and legal compliance framework for German financial compliance, statutory record retention, and electronic invoicing in Photo CRM.
+This document outlines the architectural strategy and legal compliance framework for German financial compliance, statutory record retention, and electronic invoicing in Setline.
 
 ---
 
@@ -13,9 +13,9 @@ German financial and tax regulations impose strict legal accountability on comme
 - **Abgabenordnung** (§147 AO — statutory retention periods: 8 years under BEG IV 2025 for accounting vouchers, 10 years for books and annual financial statements)
 - **Electronic Invoicing Mandate** (Wachstumschancengesetz / EN 16931 — mandatory B2B e-invoicing via ZUGFeRD 2.x and XRechnung)
 
-To provide German photo studios with immediate, legally sound compliance while minimizing operational and legal liability in a self-hosted software environment, Photo CRM adopts a **hybrid two-stage approach**:
+To provide German photo studios with immediate, legally sound compliance while minimizing operational and legal liability in a self-hosted software environment, Setline adopts a **hybrid two-stage approach**:
 
-| Phase             | Strategy                                       | Role of Photo CRM                                                                | Role of External Platform                                                                |
+| Phase             | Strategy                                       | Role of Setline                                                                  | Role of External Platform                                                                |
 | ----------------- | ---------------------------------------------- | -------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
 | **Phase 1 (MVP)** | **External Connector (Lexware Office)**        | Shoots, contracts, portal delivery, trigger invoicing, webhook sync              | Sealed GoBD vouchers, gapless numbering, ZUGFeRD/XRechnung, bank matching, DATEV exports |
 | **Post-MVP**      | **Modular Connector + Optional Native Engine** | Pluggable accounting providers (`AccountingProvider`), native PDF/A-3 generation | Certified cloud platforms (Lexware, SevDesk) or local GoBD vault                         |
@@ -24,13 +24,13 @@ To provide German photo studios with immediate, legally sound compliance while m
 
 ## 2. Phase 1: Lexware Office Integration Pattern (Primary Compliance Path)
 
-Per [ADR-0007](file:///projects/photo-crm/docs/architecture/adr/0007-accounting-integration-lexware.md), Photo CRM connects to Lexware Office via its official REST API v1.
+Per [ADR-0007](file:///projects/setline/docs/architecture/adr/0007-accounting-integration-lexware.md), Setline connects to Lexware Office via its official REST API v1.
 
 ### 2.1 Division of Responsibilities
 
 ```text
 ┌──────────────────────────────────────────────┐
-│                  Photo CRM                   │
+│                  Setline                   │
 │  - Captures bookings, packages, quotes       │
 │  - Obtains e-signatures on contracts (E6)    │
 │  - Dispatches invoice creation requests      │
@@ -51,20 +51,20 @@ Per [ADR-0007](file:///projects/photo-crm/docs/architecture/adr/0007-accounting-
 ```
 
 1. **Voucher Immutability & Numbering:**
-   - Lexware Office acts as the authoritative GoBD ledger. When Photo CRM requests invoice creation, Lexware assigns the legally required sequential invoice number and finalizes the record.
+   - Lexware Office acts as the authoritative GoBD ledger. When Setline requests invoice creation, Lexware assigns the legally required sequential invoice number and finalizes the record.
    - Corrections are executed via cancellation invoices (_Stornorechnungen_) generated through Lexware, preserving the audit trail required by GoBD §3.2.
 2. **E-Invoicing (ZUGFeRD & XRechnung):**
    - Lexware automatically compiles the EN 16931-compliant XML payload embedded inside an archival PDF/A-3 container.
-   - Photo CRM fetches the finalized document via the Lexware API and computes a SHA-256 hash. The client can download this sealed document directly from the authenticated Client Portal (E9).
+   - Setline fetches the finalized document via the Lexware API and computes a SHA-256 hash. The client can download this sealed document directly from the authenticated Client Portal (E9).
 3. **Payment Reconciliation via Webhooks:**
    - Lexware bank account feeds automatically detect incoming wire transfers or PayPal payments.
-   - Lexware fires `payment.changed` and `invoice.status.changed` webhooks to Photo CRM.
-   - Photo CRM verifies webhook HMAC signatures, transitions shoot financial stages (e.g., `Down Payment Received`, `Fully Paid`), and logs an audit event (`actor_type: 'system'`).
+   - Lexware fires `payment.changed` and `invoice.status.changed` webhooks to Setline.
+   - Setline verifies webhook HMAC signatures, transitions shoot financial stages (e.g., `Down Payment Received`, `Fully Paid`), and logs an audit event (`actor_type: 'system'`).
 
 ### 2.2 Security & Privacy Controls
 
 - **API Secret Storage:** Studio Lexware API keys are stored encrypted at rest using AES-256-GCM.
-- **Data Minimization (GDPR Art. 5(1)(c)):** Only invoicing-relevant fields (client legal name, billing address, line item description, amount, VAT tax rate) are transferred. Intimate shoot notes, questionnaires, and photo assets remain strictly inside Photo CRM.
+- **Data Minimization (GDPR Art. 5(1)(c)):** Only invoicing-relevant fields (client legal name, billing address, line item description, amount, VAT tax rate) are transferred. Intimate shoot notes, questionnaires, and photo assets remain strictly inside Setline.
 - **Webhook Protection:** Webhook endpoints validate authentication tokens, reject unsigned payloads, and run idempotent updates within database transactions.
 
 ---
@@ -75,8 +75,8 @@ A critical requirement of German financial compliance is reconciling data subjec
 
 1. **Primacy of Retention (GDPR Art. 17(3)(b)):**
    - The right to erasure does **not** apply to data required to comply with statutory retention periods under German tax law (§147 AO, §257 HGB).
-2. **Implementation in Photo CRM:**
-   - When a client exercises a GDPR erasure request (DSAR), Photo CRM checks for linked accounting records (invoices or down-payments).
+2. **Implementation in Setline:**
+   - When a client exercises a GDPR erasure request (DSAR), Setline checks for linked accounting records (invoices or down-payments).
    - If active tax vouchers exist:
      - Operational CRM data (marketing consents, questionnaires, photo galleries, raw files) is erased or anonymized per policy.
      - The client's core billing record and linked Lexware voucher references are placed in `legalHold` status.
@@ -87,7 +87,7 @@ A critical requirement of German financial compliance is reconciling data subjec
 
 ## 4. Post-MVP Native Engine Blueprint (Reference Architecture)
 
-Should Photo CRM implement an optional fully native GoBD engine in post-MVP phases, the following architectural controls must be met:
+Should Setline implement an optional fully native GoBD engine in post-MVP phases, the following architectural controls must be met:
 
 ### Immutability & Database Locking
 

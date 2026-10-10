@@ -1,4 +1,4 @@
-# Gitleaks configuration for Photo CRM
+# Gitleaks configuration for Setline
 [allowlist]
 description = "Allow mock test fixtures in tests directory"
 paths = [

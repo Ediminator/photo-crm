@@ -3,8 +3,8 @@ import type { ReactNode } from 'react';
 import { notFound, redirect } from 'next/navigation';
 import { hasLocale, NextIntlClientProvider } from 'next-intl';
 
-const SESSION_COOKIE_NAME = 'photo_crm_session';
-const SECURE_SESSION_COOKIE_NAME = '__Secure-photo_crm_session';
+const SESSION_COOKIE_NAME = 'setline_session';
+const SECURE_SESSION_COOKIE_NAME = '__Secure-setline_session';
 import { routing } from '@/i18n/routing';
 import { geistSans, geistMono } from '@/app/fonts';
 import { ThemeProvider } from '@/components/theme/theme-provider';

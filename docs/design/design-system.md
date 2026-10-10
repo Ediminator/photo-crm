@@ -1,12 +1,12 @@
-# Photo CRM Design System & App Shell
+# Setline Design System & App Shell
 
-This document defines the design tokens, typography, visual philosophy, theming mechanics, and accessibility standards for Photo CRM.
+This document defines the design tokens, typography, visual philosophy, theming mechanics, and accessibility standards for Setline.
 
 ---
 
 ## 1. Visual Philosophy: Photography-First & Low-Chroma
 
-Photographers and videographers use Photo CRM while viewing, evaluating, and delivering photographic works. Strong, saturated UI colors in chrome, sidebars, or headers contaminate human color perception and distract from client imagery.
+Photographers and videographers use Setline while viewing, evaluating, and delivering photographic works. Strong, saturated UI colors in chrome, sidebars, or headers contaminate human color perception and distract from client imagery.
 
 **Core Principles:**
 

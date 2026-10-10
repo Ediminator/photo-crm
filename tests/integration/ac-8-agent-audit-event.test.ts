@@ -35,7 +35,7 @@ describe('AC-8: Agent/Token Audit Event Recording and Attribution Metadata', () 
           actorId: 'agent-sub-1',
           action: 'agent.tool.invoked',
           targetType: 'repository',
-          targetId: 'photo-crm',
+          targetId: 'setline',
           outcome: 'success',
           metadata: agentMetadata,
         },

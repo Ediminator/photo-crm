@@ -73,9 +73,9 @@ Selected by the maintainer on 2026-10-09. Each epic is decomposed into task cont
 ## E11: Agentic interface (CLI & Model Context Protocol)
 
 - Headless TypeScript CLI (`pcrm`) supporting text tables, shell piping, and machine-readable `--json` output.
-- Model Context Protocol (MCP) server (`@photo-crm/mcp`) exposing CRM domain tools and resources to AI agent assistants (Antigravity, Claude, Cursor).
+- Model Context Protocol (MCP) server (`@setline/mcp`) exposing CRM domain tools and resources to AI agent assistants (Antigravity, Claude, Cursor).
 - Supported transports: stdio (local desktop/workstation agents) and HTTP/SSE (remote container/agent workflows).
-- Security: Scoped API tokens (`pcrm_live_...`), token rate limiting, PII redaction by default in tool responses, and immutable audit logging with agent attribution (`actor_type: 'agent'`, token ID, tool name).
+- Security: Scoped API tokens (`setline_live_...`), token rate limiting, PII redaction by default in tool responses, and immutable audit logging with agent attribution (`actor_type: 'agent'`, token ID, tool name).
 
 ## E12: External accounting & tax platform connector (Lexware Office)
 

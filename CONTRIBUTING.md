@@ -1,4 +1,4 @@
-# Contributing to Photo CRM
+# Contributing to Setline
 
 Thank you for your interest in contributing! This project is open source and built to serve independent photographers and videographers while maintaining rigorous safety, privacy, and quality standards.
 

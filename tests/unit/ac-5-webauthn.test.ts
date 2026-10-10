@@ -18,7 +18,7 @@ describe('AC-5: WebAuthn Passkeys Cryptography, Parsing and Verification', () =>
     const config = getWebAuthnConfig('http://localhost:3000');
     expect(config.rpId).toBe('localhost');
     expect(config.origin).toBe('http://localhost:3000');
-    expect(config.rpName).toBe('Photo CRM');
+    expect(config.rpName).toBe('Setline');
 
     const prodConfig = getWebAuthnConfig('https://crm.example.com');
     expect(prodConfig.rpId).toBe('crm.example.com');
@@ -35,7 +35,7 @@ describe('AC-5: WebAuthn Passkeys Cryptography, Parsing and Verification', () =>
       name: 'Studio Owner',
     };
 
-    const regOpts = createRegistrationOptions(user, challenge, rpId, 'Photo CRM');
+    const regOpts = createRegistrationOptions(user, challenge, rpId, 'Setline');
     expect(regOpts.challenge).toBe(challenge);
     expect(regOpts.rp.id).toBe(rpId);
     expect(regOpts.user.name).toBe('owner@example.com');

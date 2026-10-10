@@ -1,4 +1,4 @@
-# Photo CRM (working title)
+# Setline
 
 > **Autonomous open-source studio CRM for photographers and videographers.**  
 > Self-hosted, privacy-first, bilingual (English & German), and designed for visual professionals.

@@ -736,7 +736,7 @@ export function SecuritySettingsView({
                     const url = URL.createObjectURL(blob);
                     const a = document.createElement('a');
                     a.href = url;
-                    a.download = `photo-crm-recovery-codes-${new Date().toISOString().slice(0, 10)}.txt`;
+                    a.download = `setline-recovery-codes-${new Date().toISOString().slice(0, 10)}.txt`;
                     a.click();
                     URL.revokeObjectURL(url);
                   }

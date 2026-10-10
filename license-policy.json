@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "name": "photo-crm-license-policy",
+  "name": "setline-license-policy",
   "allowedLicenses": [
     "0BSD",
     "AGPL-3.0",

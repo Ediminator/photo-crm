@@ -131,7 +131,7 @@ export function decryptTotpSecret(encryptedString: string): string {
 /**
  * Generates standard RFC 6238 otpauth URI for authenticator apps.
  */
-export function getOtpauthUri(secret: string, accountName: string, issuer = 'Photo CRM'): string {
+export function getOtpauthUri(secret: string, accountName: string, issuer = 'Setline'): string {
   const encIssuer = encodeURIComponent(issuer);
   const encAccount = encodeURIComponent(accountName);
   return `otpauth://totp/${encIssuer}:${encAccount}?secret=${secret}&issuer=${encIssuer}&digits=6&period=30`;

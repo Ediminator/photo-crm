@@ -2,7 +2,7 @@
 /**
  * scripts/migrate.mjs
  * Executes PostgreSQL schema migrations using Drizzle ORM migrator with the
- * privileged migration role (photo_crm_migrator).
+ * privileged migration role (setline_migrator).
  */
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -25,7 +25,7 @@ export async function runMigrations(connectionUrl) {
     process.env.DATABASE_MIGRATOR_URL ||
     process.env.MIGRATION_DATABASE_URL ||
     process.env.DATABASE_URL ||
-    'postgres://photo_crm_migrator:password@127.0.0.1:5432/photo_crm_dev';
+    'postgres://setline_migrator:password@127.0.0.1:5432/setline_dev';
 
   const client = postgres(url, { max: 1, onnotice: () => {} });
   const db = drizzle(client);

@@ -151,7 +151,7 @@ export async function seedDemo(options = {}) {
     const url =
       options.connectionUrl ||
       process.env.DATABASE_URL ||
-      'postgres://photo_crm_app:password@127.0.0.1:5432/photo_crm_dev';
+      'postgres://setline_app:password@127.0.0.1:5432/setline_dev';
     rawClient = postgres(url, { max: 1, onnotice: () => {} });
     client = drizzle(rawClient);
   }
