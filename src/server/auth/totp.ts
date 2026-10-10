@@ -59,14 +59,22 @@ export function base32Decode(str: string): Buffer {
 
 /**
  * Derives a 32-byte AES-256-GCM encryption key from AUTH_SECRET using HKDF-SHA256.
+ * Refuses to encrypt or decrypt if AUTH_SECRET is not configured or fails entropy checks (I1-S04).
  */
-function getTotpEncryptionKey(): Buffer {
-  let secret = '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
+export function getTotpEncryptionKey(): Buffer {
+  let secret: string | undefined;
   try {
     secret = process.env.AUTH_SECRET ?? env.AUTH_SECRET;
   } catch {
-    secret = process.env.AUTH_SECRET ?? secret;
+    secret = process.env.AUTH_SECRET;
   }
+
+  if (!secret || typeof secret !== 'string' || secret.trim().length === 0 || secret.length < 32) {
+    throw new Error(
+      'AUTH_SECRET is required and must be at least 32 characters to derive TOTP encryption key.',
+    );
+  }
+
   return Buffer.from(crypto.hkdfSync('sha256', secret, '', 'totp-secret-encryption-v1', 32));
 }
 

@@ -2,6 +2,7 @@
 
 import 'server-only';
 import { cookies, headers } from 'next/headers';
+import { z } from 'zod';
 import { eq, and, isNull, count } from 'drizzle-orm';
 import { db, type DbClient } from '@/server/db/client';
 import {
@@ -51,6 +52,78 @@ import { audit } from '@/server/audit';
 export type ActionResult<T = unknown> =
   | { success: true; data?: T; error?: never; code?: never }
   | { success: false; error: string; code?: string; data?: never };
+
+// Strict Zod input validation schemas (I1-S08)
+const reauthenticateSchema = z
+  .object({
+    password: z.string().min(1, 'INVALID_INPUT').max(1024, 'INVALID_INPUT'),
+  })
+  .strict();
+
+const verifyTotpSchema = z
+  .object({
+    code: z
+      .string()
+      .trim()
+      .regex(/^\d{6}$/, 'INVALID_CODE'),
+  })
+  .strict();
+
+const verifyMfaTotpSchema = z
+  .object({
+    mfaTicket: z.string().min(1, 'INVALID_INPUT'),
+    code: z
+      .string()
+      .trim()
+      .regex(/^\d{6}$/, 'INVALID_CODE'),
+  })
+  .strict();
+
+const verifyMfaRecoveryCodeSchema = z
+  .object({
+    mfaTicket: z.string().min(1, 'INVALID_INPUT'),
+    recoveryCode: z
+      .string()
+      .trim()
+      .regex(/^[0-9a-f]{4}-[0-9a-f]{4}$/i, 'INVALID_RECOVERY_CODE'),
+  })
+  .strict();
+
+const completePasskeyRegistrationSchema = z
+  .object({
+    name: z
+      .string()
+      .trim()
+      .min(1, 'Passkey name must be between 1 and 255 characters.')
+      .max(255, 'Passkey name must be between 1 and 255 characters.'),
+    response: z.custom<RegistrationResponseJSON>(
+      (val) => typeof val === 'object' && val !== null && 'id' in (val as Record<string, unknown>),
+      'INVALID_INPUT',
+    ),
+  })
+  .strict();
+
+const deletePasskeySchema = z
+  .object({
+    passkeyId: z.string().min(1, 'INVALID_INPUT').max(255, 'INVALID_INPUT'),
+  })
+  .strict();
+
+const completePasskeyAuthenticationSchema = z
+  .object({
+    challenge: z.string().min(1, 'INVALID_INPUT'),
+    response: z.custom<AuthenticationResponseJSON>(
+      (val) => typeof val === 'object' && val !== null && 'id' in (val as Record<string, unknown>),
+      'INVALID_INPUT',
+    ),
+  })
+  .strict();
+
+const revokeSessionSchema = z
+  .object({
+    sessionId: z.string().min(1, 'INVALID_INPUT').max(255, 'INVALID_INPUT'),
+  })
+  .strict();
 
 /**
  * Helper to determine client IP address from Next.js request headers.
@@ -110,10 +183,6 @@ export async function assertFreshReauthentication(
     throw new Error('REAUTH_REQUIRED: No active session cookie found.');
   }
 
-  if (sessionToken === 'e2e-session-valid-token' || userId === 'e2e-owner-id') {
-    return;
-  }
-
   const verified = await verifySession(sessionToken, client);
   if (verified?.user.id !== userId) {
     throw new Error('REAUTH_REQUIRED: Invalid session.');
@@ -138,10 +207,12 @@ export async function reauthenticateAction(
   formData: { password: string },
   client: DbClient = db,
 ): Promise<ActionResult> {
-  const context = await requireOwner({ client });
-  if (context.user.id === 'e2e-owner-id') {
-    return { success: true };
+  const parsed = reauthenticateSchema.safeParse(formData);
+  if (!parsed.success) {
+    return { success: false, error: 'Invalid password format.', code: 'INVALID_INPUT' };
   }
+
+  const context = await requireOwner({ client });
 
   const accountRows = await client
     .select()
@@ -151,12 +222,12 @@ export async function reauthenticateAction(
 
   const acc = accountRows[0];
   if (!acc?.password) {
-    return { success: false, error: 'No password credential found.' };
+    return { success: false, error: 'No password credential found.', code: 'INVALID_PASSWORD' };
   }
 
-  const passwordMatch = await verifyPasswordArgon2id(acc.password, formData.password);
+  const passwordMatch = await verifyPasswordArgon2id(acc.password, parsed.data.password);
   if (!passwordMatch) {
-    return { success: false, error: 'Invalid password.' };
+    return { success: false, error: 'Invalid password.', code: 'INVALID_PASSWORD' };
   }
 
   // Refresh lastReauthenticatedAt on the active session
@@ -181,20 +252,6 @@ export async function startTotpEnrolmentAction(
   client: DbClient = db,
 ): Promise<ActionResult<{ secret: string; qrSvg: string; otpauthUri: string }>> {
   const context = await requireOwner({ client });
-
-  if (context.user.id === 'e2e-owner-id') {
-    const secret = generateTotpSecret();
-    const uri = getOtpauthUri(secret, context.user.email);
-    const qrSvg = generateTotpQrSvg(uri);
-    return {
-      success: true,
-      data: {
-        secret,
-        qrSvg,
-        otpauthUri: uri,
-      },
-    };
-  }
 
   // Check if TOTP is already verified
   const existingTotp = await client
@@ -253,21 +310,12 @@ export async function verifyAndEnableTotpAction(
   formData: { code: string },
   client: DbClient = db,
 ): Promise<ActionResult<{ recoveryCodes: string[] }>> {
-  const context = await requireOwner({ client });
-
-  if (context.user.id === 'e2e-owner-id') {
-    if (formData.code === '000000') {
-      return { success: false, error: 'Invalid verification code.' };
-    }
-    const recoveryCodes = generateRecoveryCodes(10);
-    return {
-      success: true,
-      data: {
-        recoveryCodes: recoveryCodes.plaintext,
-      },
-    };
+  const parsed = verifyTotpSchema.safeParse(formData);
+  if (!parsed.success) {
+    return { success: false, error: 'Invalid verification code.', code: 'INVALID_CODE' };
   }
 
+  const context = await requireOwner({ client });
   const ip = await getClientIp();
 
   // Rate limiting check (AC-4)
@@ -276,6 +324,7 @@ export async function verifyAndEnableTotpAction(
     return {
       success: false,
       error: 'Too many failed MFA verification attempts. Please try again later.',
+      code: 'RATE_LIMITED',
     };
   }
 
@@ -287,22 +336,23 @@ export async function verifyAndEnableTotpAction(
 
   const cred = totpRows[0];
   if (!cred) {
-    return { success: false, error: 'No TOTP enrolment in progress.' };
+    return { success: false, error: 'No TOTP enrolment in progress.', code: 'ENROLMENT_NOT_FOUND' };
   }
 
   let plainSecret: string;
   try {
     plainSecret = decryptTotpSecret(cred.secretEncrypted);
   } catch {
-    return { success: false, error: 'Failed to decrypt TOTP secret.' };
+    return { success: false, error: 'Failed to decrypt TOTP secret.', code: 'DECRYPT_FAILED' };
   }
 
-  const verificationResult = verifyTotpCode(plainSecret, formData.code, cred.lastUsedStep);
+  const verificationResult = verifyTotpCode(plainSecret, parsed.data.code, cred.lastUsedStep);
   if (!verificationResult.valid || verificationResult.step === undefined) {
     await recordMfaFailure(context.user.email, ip, client);
     return {
       success: false,
       error: 'Invalid verification code. Please check your authenticator app and try again.',
+      code: 'INVALID_CODE',
     };
   }
 
@@ -385,9 +435,6 @@ export async function verifyAndEnableTotpAction(
  */
 export async function disableTotpAction(client: DbClient = db): Promise<ActionResult> {
   const context = await requireOwner({ client });
-  if (context.user.id === 'e2e-owner-id') {
-    return { success: true };
-  }
   const ip = await getClientIp();
 
   try {
@@ -435,10 +482,6 @@ export async function regenerateRecoveryCodesAction(
   client: DbClient = db,
 ): Promise<ActionResult<{ recoveryCodes: string[] }>> {
   const context = await requireOwner({ client });
-  if (context.user.id === 'e2e-owner-id') {
-    const { plaintext } = generateRecoveryCodes(10);
-    return { success: true, data: { recoveryCodes: plaintext } };
-  }
   const ip = await getClientIp();
 
   try {
@@ -503,13 +546,21 @@ export async function verifyMfaTotpAction(
   formData: { mfaTicket: string; code: string },
   client: DbClient = db,
 ): Promise<ActionResult<{ user: { id: string; email: string; name: string } }>> {
+  const parsed = verifyMfaTotpSchema.safeParse(formData);
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: 'Invalid verification code.',
+      code: 'INVALID_CODE',
+    };
+  }
   const ip = await getClientIp();
 
   // 1. Look up mfaTicket in verification table
   const ticketRows = await client
     .select()
     .from(verification)
-    .where(eq(verification.identifier, `mfa_ticket:${formData.mfaTicket}`))
+    .where(eq(verification.identifier, `mfa_ticket:${parsed.data.mfaTicket}`))
     .limit(1);
 
   const ticket = ticketRows[0];
@@ -517,6 +568,7 @@ export async function verifyMfaTotpAction(
     return {
       success: false,
       error: 'MFA verification session has expired. Please sign in again.',
+      code: 'MFA_EXPIRED',
     };
   }
 
@@ -524,7 +576,7 @@ export async function verifyMfaTotpAction(
   const userRows = await client.select().from(user).where(eq(user.id, userId)).limit(1);
   const existingUser = userRows[0];
   if (!existingUser) {
-    return { success: false, error: 'User not found.' };
+    return { success: false, error: 'User not found.', code: 'INVALID_INPUT' };
   }
 
   // 2. Check MFA rate limits (AC-4)
@@ -533,6 +585,7 @@ export async function verifyMfaTotpAction(
     return {
       success: false,
       error: 'Too many failed MFA verification attempts. Please try again later.',
+      code: 'RATE_LIMITED',
     };
   }
 
@@ -545,23 +598,28 @@ export async function verifyMfaTotpAction(
 
   const cred = credRows[0];
   if (!cred) {
-    return { success: false, error: 'No active TOTP credential found.' };
+    return {
+      success: false,
+      error: 'No active TOTP credential found.',
+      code: 'INVALID_CREDENTIAL',
+    };
   }
 
   let plainSecret: string;
   try {
     plainSecret = decryptTotpSecret(cred.secretEncrypted);
   } catch {
-    return { success: false, error: 'Failed to decrypt TOTP secret.' };
+    return { success: false, error: 'Failed to decrypt TOTP secret.', code: 'DECRYPT_FAILED' };
   }
 
   // 4. Verify code with ±1 tolerance window and replay check (AC-2)
-  const result = verifyTotpCode(plainSecret, formData.code, cred.lastUsedStep);
+  const result = verifyTotpCode(plainSecret, parsed.data.code, cred.lastUsedStep);
   if (!result.valid || result.step === undefined) {
     await recordMfaFailure(existingUser.email, ip, client);
     return {
       success: false,
       error: 'Invalid or replayed verification code.',
+      code: 'INVALID_CODE',
     };
   }
 
@@ -634,12 +692,20 @@ export async function verifyMfaRecoveryCodeAction(
   formData: { mfaTicket: string; recoveryCode: string },
   client: DbClient = db,
 ): Promise<ActionResult<{ user: { id: string; email: string; name: string } }>> {
+  const parsed = verifyMfaRecoveryCodeSchema.safeParse(formData);
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: 'Invalid recovery code format.',
+      code: 'INVALID_RECOVERY_CODE',
+    };
+  }
   const ip = await getClientIp();
 
   const ticketRows = await client
     .select()
     .from(verification)
-    .where(eq(verification.identifier, `mfa_ticket:${formData.mfaTicket}`))
+    .where(eq(verification.identifier, `mfa_ticket:${parsed.data.mfaTicket}`))
     .limit(1);
 
   const ticket = ticketRows[0];
@@ -647,6 +713,7 @@ export async function verifyMfaRecoveryCodeAction(
     return {
       success: false,
       error: 'MFA verification session has expired. Please sign in again.',
+      code: 'MFA_EXPIRED',
     };
   }
 
@@ -654,7 +721,7 @@ export async function verifyMfaRecoveryCodeAction(
   const userRows = await client.select().from(user).where(eq(user.id, userId)).limit(1);
   const existingUser = userRows[0];
   if (!existingUser) {
-    return { success: false, error: 'User not found.' };
+    return { success: false, error: 'User not found.', code: 'INVALID_INPUT' };
   }
 
   const rateLimitStatus = await checkMfaRateLimit(existingUser.email, ip, client);
@@ -662,6 +729,7 @@ export async function verifyMfaRecoveryCodeAction(
     return {
       success: false,
       error: 'Too many failed MFA verification attempts. Please try again later.',
+      code: 'RATE_LIMITED',
     };
   }
 
@@ -671,12 +739,13 @@ export async function verifyMfaRecoveryCodeAction(
     .from(recoveryCode)
     .where(and(eq(recoveryCode.userId, existingUser.id), isNull(recoveryCode.usedAt)));
 
-  const result = verifyRecoveryCode(formData.recoveryCode, unusedCodes);
+  const result = verifyRecoveryCode(parsed.data.recoveryCode, unusedCodes);
   if (!result.valid || !result.matchedId) {
     await recordMfaFailure(existingUser.email, ip, client);
     return {
       success: false,
       error: 'Invalid recovery code. Each recovery code can only be used once.',
+      code: 'INVALID_RECOVERY_CODE',
     };
   }
 
@@ -766,19 +835,6 @@ export async function startPasskeyRegistrationAction(
   const challenge = generateWebAuthnChallenge();
   const config = getWebAuthnConfig();
 
-  if (context.user.id === 'e2e-owner-id') {
-    const options = createRegistrationOptions(
-      { id: context.user.id, email: context.user.email, name: context.user.name },
-      challenge,
-      config.rpId,
-      config.rpName,
-    );
-    return {
-      success: true,
-      data: { options },
-    };
-  }
-
   // Save challenge in verification table with 5 min TTL
   const now = new Date();
   const expiresAt = new Date(now.getTime() + 5 * 60 * 1000);
@@ -811,25 +867,16 @@ export async function completePasskeyRegistrationAction(
   formData: { name: string; response: RegistrationResponseJSON },
   client: DbClient = db,
 ): Promise<ActionResult<{ passkey: { id: string; name: string; createdAt: Date } }>> {
-  const context = await requireOwner({ client });
-  if (context.user.id === 'e2e-owner-id') {
-    return {
-      success: true,
-      data: {
-        passkey: {
-          id: 'e2e-passkey-id',
-          name: formData.name.trim() || 'Passkey',
-          createdAt: new Date(),
-        },
-      },
-    };
+  const parsed = completePasskeyRegistrationSchema.safeParse(formData);
+  if (!parsed.success) {
+    const firstIssue = parsed.error.issues[0]?.message;
+    return { success: false, error: firstIssue ?? 'Invalid input.', code: 'INVALID_INPUT' };
   }
+
+  const context = await requireOwner({ client });
   const ip = await getClientIp();
 
-  const trimmedName = formData.name.trim();
-  if (!trimmedName || trimmedName.length > 255) {
-    return { success: false, error: 'Passkey name must be between 1 and 255 characters.' };
-  }
+  const trimmedName = parsed.data.name.trim();
 
   // Look up challenge
   const challengeRows = await client
@@ -840,13 +887,17 @@ export async function completePasskeyRegistrationAction(
 
   const challengeRecord = challengeRows[0];
   if (!challengeRecord || challengeRecord.expiresAt.getTime() <= Date.now()) {
-    return { success: false, error: 'Passkey registration session expired. Please try again.' };
+    return {
+      success: false,
+      error: 'Passkey registration session expired. Please try again.',
+      code: 'CHALLENGE_EXPIRED',
+    };
   }
 
   try {
     const config = getWebAuthnConfig();
     const result = await verifyRegistrationResponse({
-      response: formData.response,
+      response: parsed.data.response,
       expectedChallenge: challengeRecord.value,
       expectedOrigin: config.origin,
       expectedRpId: config.rpId,
@@ -861,7 +912,7 @@ export async function completePasskeyRegistrationAction(
         credentialId: result.credentialId,
         publicKey: result.publicKeyPem,
         counter: result.counter,
-        transports: formData.response.response.transports?.join(',') ?? null,
+        transports: parsed.data.response.response.transports?.join(',') ?? null,
         createdAt: now,
         updatedAt: now,
       })
@@ -936,10 +987,12 @@ export async function deletePasskeyAction(
   formData: { passkeyId: string },
   client: DbClient = db,
 ): Promise<ActionResult> {
-  const context = await requireOwner({ client });
-  if (context.user.id === 'e2e-owner-id') {
-    return { success: true };
+  const parsed = deletePasskeySchema.safeParse(formData);
+  if (!parsed.success) {
+    return { success: false, error: 'Invalid input.', code: 'INVALID_INPUT' };
   }
+
+  const context = await requireOwner({ client });
   const ip = await getClientIp();
 
   const foundRows = await client
@@ -947,7 +1000,7 @@ export async function deletePasskeyAction(
     .from(passkeyCredential)
     .where(
       and(
-        eq(passkeyCredential.id, formData.passkeyId),
+        eq(passkeyCredential.id, parsed.data.passkeyId),
         eq(passkeyCredential.userId, context.user.id),
       ),
     )
@@ -955,7 +1008,7 @@ export async function deletePasskeyAction(
 
   const passkey = foundRows[0];
   if (!passkey) {
-    return { success: false, error: 'Passkey not found.' };
+    return { success: false, error: 'Passkey not found.', code: 'NOT_FOUND' };
   }
 
   // Count total passkeys for this user
@@ -1011,9 +1064,6 @@ export async function listPasskeysAction(
   client: DbClient = db,
 ): Promise<ActionResult<{ id: string; name: string; createdAt: Date; lastUsedAt: Date | null }[]>> {
   const context = await requireOwner({ client });
-  if (context.user.id === 'e2e-owner-id') {
-    return { success: true, data: [] };
-  }
 
   const rows = await client
     .select({
@@ -1064,36 +1114,45 @@ export async function completePasskeyAuthenticationAction(
   formData: { challenge: string; response: AuthenticationResponseJSON },
   client: DbClient = db,
 ): Promise<ActionResult<{ user: { id: string; email: string; name: string } }>> {
+  const parsed = completePasskeyAuthenticationSchema.safeParse(formData);
+  if (!parsed.success) {
+    return { success: false, error: 'Invalid input.', code: 'INVALID_INPUT' };
+  }
+
   const ip = await getClientIp();
 
   // Look up challenge
   const challengeRows = await client
     .select()
     .from(verification)
-    .where(eq(verification.identifier, `passkey_auth:${formData.challenge}`))
+    .where(eq(verification.identifier, `passkey_auth:${parsed.data.challenge}`))
     .limit(1);
 
   const challengeRecord = challengeRows[0];
   if (!challengeRecord || challengeRecord.expiresAt.getTime() <= Date.now()) {
-    return { success: false, error: 'Passkey sign-in session expired. Please try again.' };
+    return {
+      success: false,
+      error: 'Passkey sign-in session expired. Please try again.',
+      code: 'CHALLENGE_EXPIRED',
+    };
   }
 
   // Look up passkey by credentialId
   const credRows = await client
     .select()
     .from(passkeyCredential)
-    .where(eq(passkeyCredential.credentialId, formData.response.id))
+    .where(eq(passkeyCredential.credentialId, parsed.data.response.id))
     .limit(1);
 
   const cred = credRows[0];
   if (!cred) {
-    return { success: false, error: 'Unrecognized passkey credential.' };
+    return { success: false, error: 'Unrecognized passkey credential.', code: 'NOT_FOUND' };
   }
 
   const userRows = await client.select().from(user).where(eq(user.id, cred.userId)).limit(1);
   const existingUser = userRows[0];
   if (!existingUser) {
-    return { success: false, error: 'User not found.' };
+    return { success: false, error: 'User not found.', code: 'NOT_FOUND' };
   }
 
   const rateLimitStatus = await checkMfaRateLimit(existingUser.email, ip, client);
@@ -1101,13 +1160,14 @@ export async function completePasskeyAuthenticationAction(
     return {
       success: false,
       error: 'Too many failed sign-in attempts. Please try again later.',
+      code: 'RATE_LIMITED',
     };
   }
 
   try {
     const config = getWebAuthnConfig();
     const result = await verifyAuthenticationResponse({
-      response: formData.response,
+      response: parsed.data.response,
       publicKeyPem: cred.publicKey,
       prevCounter: cred.counter,
       expectedChallenge: challengeRecord.value,
@@ -1200,19 +1260,6 @@ export async function getMfaStatusAction(client: DbClient = db): Promise<
   }>
 > {
   const context = await requireOwner({ client });
-  if (context.user.id === 'e2e-owner-id') {
-    return {
-      success: true,
-      data: {
-        totpEnabled: false,
-        passkeyCount: 0,
-        recoveryCodesRemaining: 0,
-        mfaRequired: false,
-        mfaPostponedUntil: null,
-        hasMfa: false,
-      },
-    };
-  }
 
   const totpRows = await client
     .select()
@@ -1257,13 +1304,6 @@ export async function postponeMfaAction(
   client: DbClient = db,
 ): Promise<ActionResult<{ postponedUntil: Date }>> {
   const context = await requireOwner({ client });
-  if (context.user.id === 'e2e-owner-id') {
-    const maxPostpone = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
-    return {
-      success: true,
-      data: { postponedUntil: maxPostpone },
-    };
-  }
   const ip = await getClientIp();
 
   const settings = await getStudioSettings(client);
@@ -1321,21 +1361,6 @@ export async function listActiveSessionsAction(client: DbClient = db): Promise<
   >
 > {
   const context = await requireOwner({ client });
-  if (context.user.id === 'e2e-owner-id') {
-    return {
-      success: true,
-      data: [
-        {
-          id: 'e2e-session-id',
-          ipAddress: '127.0.0.1',
-          userAgent: 'Playwright',
-          createdAt: new Date(),
-          lastReauthenticatedAt: new Date(),
-          isCurrent: true,
-        },
-      ],
-    };
-  }
 
   let currentToken: string | undefined;
   try {
@@ -1369,20 +1394,22 @@ export async function revokeSessionByIdAction(
   formData: { sessionId: string },
   client: DbClient = db,
 ): Promise<ActionResult> {
-  const context = await requireOwner({ client });
-  if (context.user.id === 'e2e-owner-id') {
-    return { success: true };
+  const parsed = revokeSessionSchema.safeParse(formData);
+  if (!parsed.success) {
+    return { success: false, error: 'Invalid session ID.', code: 'INVALID_INPUT' };
   }
+
+  const context = await requireOwner({ client });
 
   const rows = await client
     .select()
     .from(session)
-    .where(and(eq(session.id, formData.sessionId), eq(session.userId, context.user.id)))
+    .where(and(eq(session.id, parsed.data.sessionId), eq(session.userId, context.user.id)))
     .limit(1);
 
   const target = rows[0];
   if (!target) {
-    return { success: false, error: 'Session not found.' };
+    return { success: false, error: 'Session not found.', code: 'NOT_FOUND' };
   }
 
   await revokeSession(target.token, client);

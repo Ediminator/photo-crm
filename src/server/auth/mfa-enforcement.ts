@@ -15,7 +15,7 @@ export async function checkMfaEnforcement(
   sessionToken?: string | null,
   client: DbClient = db,
 ): Promise<string | null> {
-  if (!sessionToken || sessionToken === 'e2e-session-valid-token') return null;
+  if (!sessionToken) return null;
 
   // If already on the security settings page or an auth ceremony, avoid redirect loop
   if (

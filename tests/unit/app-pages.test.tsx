@@ -24,8 +24,11 @@ vi.mock('@/server/auth/setup', () => ({
 
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }),
+  usePathname: () => '/',
   useSearchParams: () => ({ get: () => null }),
   notFound: vi.fn(),
+  redirect: vi.fn(),
+  permanentRedirect: vi.fn(),
 }));
 
 describe('App placeholder and auth pages', () => {

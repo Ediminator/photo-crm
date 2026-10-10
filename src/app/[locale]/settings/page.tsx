@@ -1,5 +1,5 @@
 import { useTranslations } from 'next-intl';
-import Link from 'next/link';
+import { Link } from '@/i18n/navigation';
 import { Shield } from 'lucide-react';
 
 export default function SettingsPage() {
@@ -16,7 +16,7 @@ export default function SettingsPage() {
       <div className="grid gap-4 md:grid-cols-2">
         <div className="rounded-lg border bg-card p-6 text-card-foreground shadow-sm space-y-4">
           <div className="flex items-center gap-3">
-            <Shield className="h-6 w-6 text-primary" aria-hidden="true" />
+            <Shield className="h-6 w-6 text-primary shrink-0" aria-hidden="true" />
             <div>
               <h2 className="text-lg font-semibold">{tSec('title')}</h2>
               <p className="text-sm text-muted-foreground">{tSec('description')}</p>
@@ -24,10 +24,10 @@ export default function SettingsPage() {
           </div>
           <div>
             <Link
-              href="settings/security"
-              className="inline-flex items-center justify-center rounded-md text-sm font-medium bg-primary text-primary-foreground hover:bg-primary/90 h-9 px-4 shadow-sm"
+              href="/settings/security"
+              className="inline-flex items-center justify-center rounded-md text-sm font-medium bg-primary text-primary-foreground hover:bg-primary/90 min-h-[36px] py-2 px-4 shadow-sm"
             >
-              {tSec('title')}
+              {tSec('manage')}
             </Link>
           </div>
         </div>

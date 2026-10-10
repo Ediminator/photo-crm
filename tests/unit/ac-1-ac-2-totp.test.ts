@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import {
   generateTotpSecret,
   encryptTotpSecret,
@@ -14,6 +14,24 @@ import {
 } from '@/server/auth/totp';
 
 describe('AC-1 & AC-2: TOTP and Recovery Codes Cryptography and Replay Logic', () => {
+  beforeEach(() => {
+    process.env.AUTH_SECRET = 'a'.repeat(64);
+  });
+
+  it('I1-S04: throws explicit error when AUTH_SECRET is missing or shorter than 32 characters', () => {
+    delete process.env.AUTH_SECRET;
+    expect(() => encryptTotpSecret('JBSWY3DPEHPK3PXP')).toThrow(
+      'AUTH_SECRET is required and must be at least 32 characters to derive TOTP encryption key.',
+    );
+
+    process.env.AUTH_SECRET = 'short-secret';
+    expect(() => encryptTotpSecret('JBSWY3DPEHPK3PXP')).toThrow(
+      'AUTH_SECRET is required and must be at least 32 characters to derive TOTP encryption key.',
+    );
+
+    process.env.AUTH_SECRET = 'a'.repeat(64);
+  });
+
   it('AC-1: generates valid base32 secret and encrypts/decrypts cleanly at rest with AES-256-GCM', () => {
     const secret = generateTotpSecret();
     expect(secret).toMatch(/^[A-Z2-7]{32}$/);

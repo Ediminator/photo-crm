@@ -1,3 +1,4 @@
+import { redirect } from 'next/navigation';
 import { requireOwner } from '@/server/auth/guards';
 import {
   getMfaStatusAction,
@@ -12,7 +13,11 @@ export default async function SecuritySettingsPage({
   params: Promise<{ locale: string }>;
 }) {
   const { locale } = await params;
-  await requireOwner();
+  try {
+    await requireOwner();
+  } catch {
+    redirect(`/${locale}/sign-in?callbackUrl=/${locale}/settings/security`);
+  }
 
   let status: {
     totpEnabled: boolean;

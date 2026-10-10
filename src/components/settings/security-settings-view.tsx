@@ -23,6 +23,14 @@ import {
   type RegistrationResponseJSON,
 } from '@/lib/webauthn-client';
 import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from '@/components/ui/dialog';
+import { formatDate } from '@/lib/formatters';
+import {
   Shield,
   Smartphone,
   Key,
@@ -34,6 +42,31 @@ import {
   RefreshCw,
   Trash2,
 } from 'lucide-react';
+
+interface SafeQrSvgProps {
+  svgString: string;
+  ariaLabel: string;
+}
+
+function SafeQrSvg({ svgString, ariaLabel }: SafeQrSvgProps) {
+  const viewBoxMatch = /viewBox="([^"]+)"/.exec(svgString);
+  const pathMatch = /d="([^"]+)"/.exec(svgString);
+  const viewBox = viewBoxMatch?.[1] ?? '0 0 310 310';
+  const pathD = pathMatch?.[1] ?? '';
+
+  return (
+    <svg
+      role="img"
+      aria-label={ariaLabel}
+      viewBox={viewBox}
+      className="w-full h-full text-foreground"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <rect fill="white" width="100%" height="100%" />
+      {pathD && <path fill="currentColor" d={pathD} />}
+    </svg>
+  );
+}
 
 interface SecuritySettingsViewProps {
   initialStatus: {
@@ -101,10 +134,22 @@ export function SecuritySettingsView({
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
-  // Clear notices after 5 seconds
   const setNotice = (msg: string) => {
     setSuccessMessage(msg);
     setError(null);
+  };
+
+  const getErrorMessage = (code?: string, defaultError?: string) => {
+    if (code) {
+      try {
+        if (t.has(`errors.${code}`)) {
+          return t(`errors.${code}`);
+        }
+      } catch {
+        // Fall through
+      }
+    }
+    return defaultError ?? t('errors.INVALID_INPUT');
   };
 
   // Re-authentication helper
@@ -115,7 +160,7 @@ export function SecuritySettingsView({
     startTransition(async () => {
       const result = await reauthenticateAction({ password: reauthPassword });
       if (!result.success) {
-        setError(result.error);
+        setError(getErrorMessage(result.code, result.error));
         return;
       }
 
@@ -136,7 +181,7 @@ export function SecuritySettingsView({
     startTransition(async () => {
       const res = await startTotpEnrolmentAction();
       if (!res.success || !res.data) {
-        setError(res.error ?? 'Failed to start enrolment');
+        setError(getErrorMessage(res.code, res.error ?? t('errors.failedToStart')));
         return;
       }
       setTotpSecret(res.data.secret);
@@ -152,7 +197,7 @@ export function SecuritySettingsView({
     startTransition(async () => {
       const res = await verifyAndEnableTotpAction({ code: verifyCode });
       if (!res.success || !res.data) {
-        setError(res.error ?? 'Verification failed');
+        setError(getErrorMessage(res.code, res.error ?? t('errors.failedToVerify')));
         return;
       }
 
@@ -165,7 +210,7 @@ export function SecuritySettingsView({
         hasMfa: true,
         mfaRequired: true,
       }));
-      setNotice('TOTP enabled successfully.');
+      setNotice(t('notices.totpEnabled'));
       router.refresh();
     });
   };
@@ -180,7 +225,7 @@ export function SecuritySettingsView({
           setPendingAction(() => execute);
           setReauthModalOpen(true);
         } else {
-          setError(res.error);
+          setError(getErrorMessage(res.code, res.error));
         }
         return;
       }
@@ -189,7 +234,7 @@ export function SecuritySettingsView({
         totpEnabled: false,
         hasMfa: prev.passkeyCount > 0,
       }));
-      setNotice('TOTP disabled successfully.');
+      setNotice(t('notices.totpDisabled'));
       router.refresh();
     };
 
@@ -206,12 +251,12 @@ export function SecuritySettingsView({
           setPendingAction(() => execute);
           setReauthModalOpen(true);
         } else {
-          setError(res.error ?? 'Failed to regenerate codes');
+          setError(getErrorMessage(res.code, res.error ?? t('errors.failedToRegenerate')));
         }
         return;
       }
       setRecoveryCodes(res.data.recoveryCodes);
-      setNotice('New recovery codes generated.');
+      setNotice(t('notices.recoveryCodesRegenerated'));
     };
 
     startTransition(execute);
@@ -223,7 +268,7 @@ export function SecuritySettingsView({
     setError(null);
 
     if (!isWebAuthnSupported()) {
-      setError('Passkeys are not supported on this device.');
+      setError(t('errors.webauthnUnsupported'));
       return;
     }
 
@@ -231,7 +276,7 @@ export function SecuritySettingsView({
       try {
         const startRes = await startPasskeyRegistrationAction();
         if (!startRes.success || !startRes.data) {
-          setError(startRes.error ?? 'Failed to start passkey registration.');
+          setError(getErrorMessage(startRes.code, startRes.error ?? t('errors.failedToStart')));
           return;
         }
 
@@ -255,7 +300,7 @@ export function SecuritySettingsView({
         })) as PublicKeyCredential | null;
 
         if (!cred) {
-          setError('Passkey registration was cancelled.');
+          setError(t('errors.passkeyCancelled'));
           return;
         }
 
@@ -281,7 +326,7 @@ export function SecuritySettingsView({
         });
 
         if (!completeRes.success || !completeRes.data) {
-          setError(completeRes.error ?? 'Failed to complete passkey registration.');
+          setError(getErrorMessage(completeRes.code, completeRes.error));
           return;
         }
 
@@ -302,10 +347,10 @@ export function SecuritySettingsView({
         }));
         setRegisteringPasskey(false);
         setPasskeyName('');
-        setNotice('Passkey registered successfully.');
+        setNotice(t('notices.passkeyRegistered'));
         router.refresh();
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Passkey registration error.');
+        setError(err instanceof Error ? err.message : t('errors.INVALID_INPUT'));
       }
     });
   };
@@ -320,7 +365,7 @@ export function SecuritySettingsView({
           setPendingAction(() => execute);
           setReauthModalOpen(true);
         } else {
-          setError(res.error);
+          setError(getErrorMessage(res.code, res.error));
         }
         return;
       }
@@ -331,7 +376,7 @@ export function SecuritySettingsView({
         passkeyCount: Math.max(0, prev.passkeyCount - 1),
         hasMfa: prev.totpEnabled || prev.passkeyCount - 1 > 0,
       }));
-      setNotice('Passkey deleted.');
+      setNotice(t('notices.passkeyDeleted'));
       router.refresh();
     };
 
@@ -344,11 +389,11 @@ export function SecuritySettingsView({
     startTransition(async () => {
       const res = await revokeSessionByIdAction({ sessionId });
       if (!res.success) {
-        setError(res.error);
+        setError(getErrorMessage(res.code, res.error));
         return;
       }
       setSessions((prev) => prev.filter((s) => s.id !== sessionId));
-      setNotice('Session revoked.');
+      setNotice(t('notices.sessionRevoked'));
     });
   };
 
@@ -368,7 +413,7 @@ export function SecuritySettingsView({
     startTransition(async () => {
       const res = await postponeMfaAction();
       if (!res.success || !res.data) {
-        setError(res.error ?? 'Failed to postpone MFA.');
+        setError(getErrorMessage(res.code, res.error));
         return;
       }
       const postponeData = res.data;
@@ -376,9 +421,7 @@ export function SecuritySettingsView({
         ...prev,
         mfaPostponedUntil: postponeData.postponedUntil,
       }));
-      setNotice(
-        t('postponeSuccess', { date: new Date(postponeData.postponedUntil).toLocaleDateString() }),
-      );
+      setNotice(t('postponeSuccess', { date: formatDate(postponeData.postponedUntil, locale) }));
     });
   };
 
@@ -410,7 +453,7 @@ export function SecuritySettingsView({
               {status.mfaPostponedUntil && (
                 <p className="text-xs text-muted-foreground">
                   {t('mfaPostponeNotice', {
-                    date: new Date(status.mfaPostponedUntil).toLocaleDateString(),
+                    date: formatDate(status.mfaPostponedUntil, locale),
                   })}
                 </p>
               )}
@@ -501,15 +544,14 @@ export function SecuritySettingsView({
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
-              {/* Local Vector SVG QR Code with accessible alternative */}
+              {/* Local Vector SVG QR Code with accessible alternative (Safe pure React component) */}
               <div className="flex flex-col items-center p-4 bg-white dark:bg-white rounded-lg border shadow-inner max-w-[280px] mx-auto">
                 <div
                   data-testid="totp-qr-code"
-                  role="img"
-                  aria-label={t('qrCodeAlt')}
                   className="w-56 h-56 flex items-center justify-center text-black"
-                  dangerouslySetInnerHTML={{ __html: totpQrSvg }}
-                />
+                >
+                  <SafeQrSvg svgString={totpQrSvg} ariaLabel={t('qrCodeAlt')} />
+                </div>
               </div>
 
               {/* Accessible Manual Key Alternative */}
@@ -626,64 +668,68 @@ export function SecuritySettingsView({
         )}
       </section>
 
-      {/* Recovery Codes Display Modal */}
-      {recoveryCodes && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="recovery-codes-heading"
-          data-testid="recovery-codes-display"
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
-        >
-          <div className="bg-card text-card-foreground border rounded-xl shadow-xl max-w-lg w-full p-6 space-y-6">
-            <div className="space-y-2">
-              <h2 id="recovery-codes-heading" className="text-xl font-bold">
-                {t('recoveryCodesTitle')}
-              </h2>
-              <p className="text-sm text-muted-foreground">{t('recoveryCodesDescription')}</p>
-              <div className="rounded-md bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 p-3 text-xs text-amber-900 dark:text-amber-200">
-                {t('recoveryCodesWarning')}
+      {/* Recovery Codes Display Modal (Radix Dialog) */}
+      <Dialog
+        open={Boolean(recoveryCodes)}
+        onOpenChange={(open) => {
+          if (!open) setRecoveryCodes(null);
+        }}
+      >
+        <DialogContent data-testid="recovery-codes-display" className="max-w-lg space-y-6">
+          <DialogHeader className="space-y-2">
+            <DialogTitle id="recovery-codes-heading" className="text-xl font-bold">
+              {t('recoveryCodesTitle')}
+            </DialogTitle>
+            <DialogDescription className="text-sm text-muted-foreground">
+              {t('recoveryCodesDescription')}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="rounded-md bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 p-3 text-xs text-amber-900 dark:text-amber-200">
+            {t('recoveryCodesWarning')}
+          </div>
+
+          <div className="grid grid-cols-2 gap-2 p-4 bg-muted rounded-lg font-mono text-center text-sm font-semibold select-all">
+            {recoveryCodes?.map((code) => (
+              <div
+                key={code}
+                data-testid="recovery-code-item"
+                className="p-1.5 bg-background rounded border"
+              >
+                {code}
               </div>
-            </div>
+            ))}
+          </div>
 
-            <div className="grid grid-cols-2 gap-2 p-4 bg-muted rounded-lg font-mono text-center text-sm font-semibold select-all">
-              {recoveryCodes.map((code) => (
-                <div
-                  key={code}
-                  data-testid="recovery-code-item"
-                  className="p-1.5 bg-background rounded border"
-                >
-                  {code}
-                </div>
-              ))}
-            </div>
-
-            <div className="flex flex-wrap gap-2 justify-between">
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  data-testid="copy-recovery-codes-btn"
-                  onClick={() => {
+          <div className="flex flex-wrap gap-2 justify-between">
+            <div className="flex gap-2">
+              <button
+                type="button"
+                data-testid="copy-recovery-codes-btn"
+                onClick={() => {
+                  if (recoveryCodes) {
                     void navigator.clipboard.writeText(recoveryCodes.join('\n'));
                     setCopiedCodes(true);
                     setTimeout(() => {
                       setCopiedCodes(false);
                     }, 2000);
-                  }}
-                  className="inline-flex items-center gap-1.5 rounded-md border border-input bg-background hover:bg-accent text-xs font-medium h-9 px-3"
-                >
-                  {copiedCodes ? (
-                    <Check className="h-3.5 w-3.5 text-green-600" />
-                  ) : (
-                    <Copy className="h-3.5 w-3.5" />
-                  )}
-                  {t('copyRecoveryCodes')}
-                </button>
+                  }
+                }}
+                className="inline-flex items-center gap-1.5 rounded-md border border-input bg-background hover:bg-accent text-xs font-medium h-9 px-3"
+              >
+                {copiedCodes ? (
+                  <Check className="h-3.5 w-3.5 text-green-600" />
+                ) : (
+                  <Copy className="h-3.5 w-3.5" />
+                )}
+                {t('copyRecoveryCodes')}
+              </button>
 
-                <button
-                  type="button"
-                  data-testid="download-recovery-codes-btn"
-                  onClick={() => {
+              <button
+                type="button"
+                data-testid="download-recovery-codes-btn"
+                onClick={() => {
+                  if (recoveryCodes) {
                     const blob = new Blob([recoveryCodes.join('\n')], {
                       type: 'text/plain;charset=utf-8',
                     });
@@ -693,28 +739,28 @@ export function SecuritySettingsView({
                     a.download = `photo-crm-recovery-codes-${new Date().toISOString().slice(0, 10)}.txt`;
                     a.click();
                     URL.revokeObjectURL(url);
-                  }}
-                  className="inline-flex items-center gap-1.5 rounded-md border border-input bg-background hover:bg-accent text-xs font-medium h-9 px-3"
-                >
-                  <Download className="h-3.5 w-3.5" />
-                  {t('downloadRecoveryCodes')}
-                </button>
-              </div>
-
-              <button
-                type="button"
-                data-testid="confirm-recovery-codes-btn"
-                onClick={() => {
-                  setRecoveryCodes(null);
+                  }
                 }}
-                className="inline-flex items-center justify-center rounded-md bg-primary text-primary-foreground hover:bg-primary/90 text-xs font-medium h-9 px-4"
+                className="inline-flex items-center gap-1.5 rounded-md border border-input bg-background hover:bg-accent text-xs font-medium h-9 px-3"
               >
-                {t('confirmRecoveryCodes')}
+                <Download className="h-3.5 w-3.5" />
+                {t('downloadRecoveryCodes')}
               </button>
             </div>
+
+            <button
+              type="button"
+              data-testid="confirm-recovery-codes-btn"
+              onClick={() => {
+                setRecoveryCodes(null);
+              }}
+              className="inline-flex items-center justify-center rounded-md bg-primary text-primary-foreground hover:bg-primary/90 text-xs font-medium h-9 px-4"
+            >
+              {t('confirmRecoveryCodes')}
+            </button>
           </div>
-        </div>
-      )}
+        </DialogContent>
+      </Dialog>
 
       {/* Card 2: Passkeys (WebAuthn) */}
       <section
@@ -804,13 +850,13 @@ export function SecuritySettingsView({
                 <div className="space-y-0.5">
                   <p className="text-sm font-medium text-foreground">{pk.name}</p>
                   <p className="text-xs text-muted-foreground">
-                    {t('passkeyCreated', { date: new Date(pk.createdAt).toLocaleDateString() })}
+                    {t('passkeyCreated', { date: formatDate(pk.createdAt, locale) })}
                     {pk.lastUsedAt && (
                       <>
                         {' '}
                         ·{' '}
                         {t('passkeyLastUsed', {
-                          date: new Date(pk.lastUsedAt).toLocaleDateString(),
+                          date: formatDate(pk.lastUsedAt, locale),
                         })}
                       </>
                     )}
@@ -901,70 +947,73 @@ export function SecuritySettingsView({
         </div>
       </section>
 
-      {/* Re-Authentication Modal (AC-6) */}
-      {reauthModalOpen && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="reauth-modal-title"
-          data-testid="reauth-modal"
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
-        >
-          <div className="bg-card text-card-foreground border rounded-xl shadow-xl max-w-md w-full p-6 space-y-4">
-            <div className="space-y-1">
-              <h2 id="reauth-modal-title" className="text-lg font-bold">
-                {t('reauthTitle')}
-              </h2>
-              <p className="text-sm text-muted-foreground">{t('reauthDescription')}</p>
+      {/* Re-Authentication Modal (AC-6, Radix Dialog) */}
+      <Dialog
+        open={reauthModalOpen}
+        onOpenChange={(open) => {
+          if (!open) {
+            setReauthModalOpen(false);
+            setPendingAction(null);
+            setReauthPassword('');
+          }
+        }}
+      >
+        <DialogContent data-testid="reauth-modal" className="max-w-md space-y-4">
+          <DialogHeader className="space-y-1">
+            <DialogTitle id="reauth-modal-title" className="text-lg font-bold">
+              {t('reauthTitle')}
+            </DialogTitle>
+            <DialogDescription className="text-sm text-muted-foreground">
+              {t('reauthDescription')}
+            </DialogDescription>
+          </DialogHeader>
+
+          <form onSubmit={handleReauthSubmit} className="space-y-4">
+            <div className="space-y-1.5">
+              <label
+                htmlFor="reauth-password-input"
+                className="text-sm font-medium text-foreground"
+              >
+                {t('reauthPassword')}
+              </label>
+              <input
+                id="reauth-password-input"
+                data-testid="reauth-password-input"
+                type="password"
+                required
+                value={reauthPassword}
+                onChange={(e) => {
+                  setReauthPassword(e.target.value);
+                }}
+                placeholder={t('reauthPasswordPlaceholder')}
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              />
             </div>
 
-            <form onSubmit={handleReauthSubmit} className="space-y-4">
-              <div className="space-y-1.5">
-                <label
-                  htmlFor="reauth-password-input"
-                  className="text-sm font-medium text-foreground"
-                >
-                  {t('reauthPassword')}
-                </label>
-                <input
-                  id="reauth-password-input"
-                  data-testid="reauth-password-input"
-                  type="password"
-                  required
-                  value={reauthPassword}
-                  onChange={(e) => {
-                    setReauthPassword(e.target.value);
-                  }}
-                  placeholder={t('reauthPasswordPlaceholder')}
-                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                />
-              </div>
-
-              <div className="flex justify-end gap-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setReauthModalOpen(false);
-                    setPendingAction(null);
-                    setReauthPassword('');
-                  }}
-                  className="inline-flex items-center justify-center rounded-md text-sm font-medium border border-input bg-background hover:bg-accent h-9 px-4"
-                >
-                  {t('cancel')}
-                </button>
-                <button
-                  type="submit"
-                  data-testid="reauth-submit-btn"
-                  disabled={isPending || !reauthPassword.trim()}
-                  className="inline-flex items-center justify-center rounded-md text-sm font-medium bg-primary text-primary-foreground hover:bg-primary/90 h-9 px-4 disabled:opacity-50"
-                >
-                  {isPending ? t('confirmingReauth') : t('confirmReauth')}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+            <div className="flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setReauthModalOpen(false);
+                  setPendingAction(null);
+                  setReauthPassword('');
+                }}
+                className="inline-flex items-center justify-center rounded-md text-sm font-medium border border-input bg-background hover:bg-accent h-9 px-4"
+              >
+                {t('cancel')}
+              </button>
+              <button
+                type="submit"
+                data-testid="reauth-submit-btn"
+                disabled={isPending || !reauthPassword.trim()}
+                className="inline-flex items-center justify-center rounded-md text-sm font-medium bg-primary text-primary-foreground hover:bg-primary/90 h-9 px-4 disabled:opacity-50"
+              >
+                {isPending ? t('confirmingReauth') : t('confirmReauth')}
+              </button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

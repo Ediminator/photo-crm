@@ -56,7 +56,7 @@ This threat model identifies key assets, trust boundaries, threat actors, and ST
 ### Spoofing
 
 - **Threat:** Attacker spoofs studio owner, claims initial instance setup, or forges agent token.
-- **Mitigation:** Setup token required for initial instance bootstrap (`SETUP_TOKEN`); argon2id password hashing; mandatory MFA (TOTP/WebAuthn); constant-time token comparison; SHA-256 hashed API keys with required scopes.
+- **Mitigation:** Setup token required for initial instance bootstrap (`SETUP_TOKEN`); argon2id password hashing; mandatory MFA (TOTP RFC 6238 with code replay prevention & WebAuthn/Passkeys with challenge expiration and signature counter verification); constant-time token comparison; SHA-256 hashed API keys with required scopes; re-authentication step-up (≤ 5 min freshness) for sensitive MFA management.
 
 ### Tampering
 
@@ -71,7 +71,7 @@ This threat model identifies key assets, trust boundaries, threat actors, and ST
 ### Information Disclosure
 
 - **Threat:** Attacker enumerates accounts, reads other clients' galleries (IDOR), steals credentials from logs, or LLM agent exposes client PII.
-- **Mitigation:** Object-level authorization checks; generic error messages; automatic log redaction of PII; private S3 buckets with short-lived pre-signed URLs; EXIF/GPS stripping; PII masking by default in CLI/MCP outputs; strict data minimization when syncing to Lexware Office.
+- **Mitigation:** Object-level authorization checks; generic error messages; automatic log redaction of PII; private S3 buckets with short-lived pre-signed URLs; EXIF/GPS stripping; PII masking by default in CLI/MCP outputs; strict data minimization when syncing to Lexware Office; AES-256-GCM field encryption at rest for TOTP secrets; scrypt-hashed single-use recovery codes.
 
 ### Denial of Service
 

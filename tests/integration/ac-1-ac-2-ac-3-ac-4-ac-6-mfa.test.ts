@@ -56,6 +56,7 @@ describe('AC-1, AC-2, AC-3, AC-4, AC-6: MFA Integration Suite', () => {
   beforeEach(async () => {
     testDb = await createIsolatedTestDatabase();
     process.env.SETUP_TOKEN = validSetupToken;
+    process.env.AUTH_SECRET = 'a'.repeat(64);
     mockCookiesStore.clear();
 
     const dbClient = testDb.db as unknown as DbClient;

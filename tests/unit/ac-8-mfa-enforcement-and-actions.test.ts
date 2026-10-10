@@ -46,11 +46,23 @@ describe('WebAuthn Client utilities', () => {
 });
 
 describe('AC-8: checkMfaEnforcement service', () => {
-  it('returns null if session token is missing or synthetic e2e token', async () => {
+  it('returns null if session token is missing or session is not found in database', async () => {
     const res1 = await checkMfaEnforcement('en', '/en/settings', null);
     expect(res1).toBeNull();
 
-    const res2 = await checkMfaEnforcement('en', '/en/settings', 'e2e-session-valid-token');
+    const mockClient = {
+      select: () => ({
+        from: () => ({
+          innerJoin: () => ({
+            where: () => ({
+              limit: () => Promise.resolve([]),
+            }),
+          }),
+        }),
+      }),
+    } as unknown as DbClient;
+
+    const res2 = await checkMfaEnforcement('en', '/en/settings', 'non-existent-token', mockClient);
     expect(res2).toBeNull();
   });
 
@@ -620,7 +632,7 @@ describe('AC-5: WebAuthn verification error cases and cryptographic checks', () 
 
     // Unsupported major type (e.g. 0xe0 = major type 7 / simple/float)
     const unsupportedCbor = Buffer.from([0xe0]);
-    expect(() => decodeCbor(unsupportedCbor)).toThrow('Unsupported CBOR major type');
+    expect(() => decodeCbor(unsupportedCbor)).toThrow(/Unsupported/);
   });
 
   it('covers verifyAuthenticationResponse challenge and origin mismatches', async () => {

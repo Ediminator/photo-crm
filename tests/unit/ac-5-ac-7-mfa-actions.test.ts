@@ -161,13 +161,6 @@ describe('MFA Server Actions Unit Tests', () => {
   });
 
   describe('startPasskeyRegistrationAction', () => {
-    it('returns options for e2e-owner-id without database query', async () => {
-      mockCurrentUser.id = 'e2e-owner-id';
-      const result = await startPasskeyRegistrationAction();
-      expect(result.success).toBe(true);
-      expect(result.data?.options).toBeDefined();
-    });
-
     it('stores challenge and returns options for standard owner', async () => {
       const mockInsert = vi.fn().mockReturnValue({
         values: vi.fn().mockResolvedValue([]),
@@ -184,20 +177,6 @@ describe('MFA Server Actions Unit Tests', () => {
   });
 
   describe('completePasskeyRegistrationAction', () => {
-    it('returns mock passkey for e2e-owner-id', async () => {
-      mockCurrentUser.id = 'e2e-owner-id';
-      const result = await completePasskeyRegistrationAction({
-        name: 'My YubiKey',
-        response: {
-          id: 'test-id',
-          rawId: 'test-raw-id',
-          response: { clientDataJSON: '', attestationObject: '' },
-        },
-      });
-      expect(result.success).toBe(true);
-      expect(result.data?.passkey.name).toBe('My YubiKey');
-    });
-
     it('rejects empty or excessively long passkey names', async () => {
       const emptyRes = await completePasskeyRegistrationAction({
         name: '   ',
@@ -343,9 +322,16 @@ describe('MFA Server Actions Unit Tests', () => {
   });
 
   describe('listPasskeysAction', () => {
-    it('returns empty array for e2e-owner-id', async () => {
-      mockCurrentUser.id = 'e2e-owner-id';
-      const result = await listPasskeysAction();
+    it('returns empty array when user has no passkeys', async () => {
+      const mockClient = {
+        select: () => ({
+          from: () => ({
+            where: () => Promise.resolve([]),
+          }),
+        }),
+      } as unknown as DbClient;
+
+      const result = await listPasskeysAction(mockClient);
       expect(result.success).toBe(true);
       expect(result.data).toEqual([]);
     });
@@ -375,12 +361,6 @@ describe('MFA Server Actions Unit Tests', () => {
   });
 
   describe('deletePasskeyAction', () => {
-    it('returns success for e2e-owner-id', async () => {
-      mockCurrentUser.id = 'e2e-owner-id';
-      const result = await deletePasskeyAction({ passkeyId: 'any-id' });
-      expect(result.success).toBe(true);
-    });
-
     it('returns error if passkey is not found', async () => {
       const mockClient = {
         select: () => ({
@@ -867,9 +847,18 @@ describe('MFA Server Actions Unit Tests', () => {
   });
 
   describe('getMfaStatusAction', () => {
-    it('returns default unconfigured status for e2e-owner-id', async () => {
-      mockCurrentUser.id = 'e2e-owner-id';
-      const result = await getMfaStatusAction();
+    it('returns default unconfigured status for unconfigured owner', async () => {
+      mockCurrentUser.id = 'owner-uuid-1';
+      const mockClient = {
+        select: () => ({
+          from: () => ({
+            where: () => ({
+              limit: () => Promise.resolve([]),
+            }),
+          }),
+        }),
+      } as unknown as DbClient;
+      const result = await getMfaStatusAction(mockClient);
       expect(result.success).toBe(true);
       expect(result.data?.hasMfa).toBe(false);
       expect(result.data?.totpEnabled).toBe(false);
@@ -907,13 +896,6 @@ describe('MFA Server Actions Unit Tests', () => {
   });
 
   describe('postponeMfaAction', () => {
-    it('returns 7-day postponed date for e2e-owner-id', async () => {
-      mockCurrentUser.id = 'e2e-owner-id';
-      const result = await postponeMfaAction();
-      expect(result.success).toBe(true);
-      expect(result.data?.postponedUntil).toBeInstanceOf(Date);
-    });
-
     it('updates studioSettings and records audit event for standard owner', async () => {
       const mockUpdate = vi.fn().mockReturnValue({
         set: vi.fn().mockReturnValue({
@@ -928,18 +910,11 @@ describe('MFA Server Actions Unit Tests', () => {
       const result = await postponeMfaAction(mockClient);
       expect(result.success).toBe(true);
       expect(mockUpdate).toHaveBeenCalled();
+      expect(result.data?.postponedUntil).toBeInstanceOf(Date);
     });
   });
 
   describe('listActiveSessionsAction and revokeSessionByIdAction', () => {
-    it('listActiveSessionsAction returns e2e dummy session for e2e-owner-id', async () => {
-      mockCurrentUser.id = 'e2e-owner-id';
-      const result = await listActiveSessionsAction();
-      expect(result.success).toBe(true);
-      expect(result.data).toHaveLength(1);
-      expect(result.data?.[0]?.id).toBe('e2e-session-id');
-    });
-
     it('listActiveSessionsAction flags current session using cookie token', async () => {
       mockCookiesStore.set('photo_crm_session', 'token-active-1');
       const now = new Date();
@@ -1002,12 +977,6 @@ describe('MFA Server Actions Unit Tests', () => {
       const result = await listActiveSessionsAction(mockClient);
       expect(result.success).toBe(true);
       expect(result.data?.[0]?.isCurrent).toBe(false);
-    });
-
-    it('revokeSessionByIdAction returns success for e2e-owner-id', async () => {
-      mockCurrentUser.id = 'e2e-owner-id';
-      const result = await revokeSessionByIdAction({ sessionId: 'sess-e2e' });
-      expect(result.success).toBe(true);
     });
 
     it('revokeSessionByIdAction returns error when session is not found', async () => {

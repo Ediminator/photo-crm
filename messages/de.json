@@ -199,7 +199,35 @@
       "mfaPostponeNotice": "Die Multi-Faktor-Authentifizierung wird am {date} verpflichtend.",
       "postponeBtn": "Verschieben (bis zu 7 Tage)",
       "postponingBtn": "Wird verschoben...",
-      "postponeSuccess": "MFA-Pflicht bis zum {date} verschoben."
+      "postponeSuccess": "MFA-Pflicht bis zum {date} verschoben.",
+      "manage": "Sicherheit verwalten",
+      "notices": {
+        "totpEnabled": "TOTP erfolgreich aktiviert.",
+        "totpDisabled": "TOTP erfolgreich deaktiviert.",
+        "recoveryCodesRegenerated": "Neue Wiederherstellungscodes generiert.",
+        "passkeyRegistered": "Passkey erfolgreich registriert.",
+        "passkeyDeleted": "Passkey gelöscht.",
+        "sessionRevoked": "Sitzung widerrufen."
+      },
+      "errors": {
+        "INVALID_CODE": "Ungültiger oder bereits verwendeter Verifizierungscode.",
+        "INVALID_RECOVERY_CODE": "Ungültiger Wiederherstellungscode. Jeder Code kann nur einmal verwendet werden.",
+        "RATE_LIMITED": "Zu viele fehlgeschlagene Versuche. Bitte versuchen Sie es später erneut.",
+        "MFA_EXPIRED": "MFA-Sitzung ist abgelaufen. Bitte melden Sie sich erneut an.",
+        "INVALID_PASSWORD": "Ungültiges Master-Passwort.",
+        "INVALID_INPUT": "Ungültige Eingabe.",
+        "REAUTH_REQUIRED": "Erneute Authentifizierung erforderlich. Bitte bestätigen Sie Ihr Passwort.",
+        "NOT_FOUND": "Die angeforderte Ressource wurde nicht gefunden.",
+        "CHALLENGE_EXPIRED": "Sitzung abgelaufen. Bitte versuchen Sie es erneut.",
+        "ENROLMENT_NOT_FOUND": "Keine TOTP-Einrichtung im Gange.",
+        "DECRYPT_FAILED": "Entschlüsselung des Schlüssels fehlgeschlagen.",
+        "INVALID_CREDENTIAL": "Keine aktiven Anmeldedaten gefunden.",
+        "webauthnUnsupported": "Passkeys werden auf diesem Gerät nicht unterstützt.",
+        "passkeyCancelled": "Passkey-Registrierung wurde abgebrochen.",
+        "failedToStart": "Einrichtung konnte nicht gestartet werden.",
+        "failedToVerify": "Verifizierung fehlgeschlagen.",
+        "failedToRegenerate": "Wiederherstellungscodes konnten nicht neu generiert werden."
+      }
     }
   }
 }

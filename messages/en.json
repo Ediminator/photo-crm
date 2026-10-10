@@ -199,7 +199,35 @@
       "mfaPostponeNotice": "Multi-factor authentication will become mandatory on {date}.",
       "postponeBtn": "Postpone (up to 7 days)",
       "postponingBtn": "Postponing...",
-      "postponeSuccess": "MFA enforcement postponed until {date}."
+      "postponeSuccess": "MFA enforcement postponed until {date}.",
+      "manage": "Manage Security",
+      "notices": {
+        "totpEnabled": "TOTP enabled successfully.",
+        "totpDisabled": "TOTP disabled successfully.",
+        "recoveryCodesRegenerated": "New recovery codes generated.",
+        "passkeyRegistered": "Passkey registered successfully.",
+        "passkeyDeleted": "Passkey deleted.",
+        "sessionRevoked": "Session revoked."
+      },
+      "errors": {
+        "INVALID_CODE": "Invalid or replayed verification code.",
+        "INVALID_RECOVERY_CODE": "Invalid recovery code. Each recovery code can only be used once.",
+        "RATE_LIMITED": "Too many failed attempts. Please try again later.",
+        "MFA_EXPIRED": "MFA verification session has expired. Please sign in again.",
+        "INVALID_PASSWORD": "Invalid master password.",
+        "INVALID_INPUT": "Invalid input provided.",
+        "REAUTH_REQUIRED": "Re-authentication required. Please enter your password to proceed.",
+        "NOT_FOUND": "Requested resource was not found.",
+        "CHALLENGE_EXPIRED": "Session expired. Please try again.",
+        "ENROLMENT_NOT_FOUND": "No TOTP enrolment in progress.",
+        "DECRYPT_FAILED": "Failed to decrypt secret.",
+        "INVALID_CREDENTIAL": "No active credential found.",
+        "webauthnUnsupported": "Passkeys are not supported on this device.",
+        "passkeyCancelled": "Passkey registration was cancelled.",
+        "failedToStart": "Failed to start enrolment.",
+        "failedToVerify": "Verification failed.",
+        "failedToRegenerate": "Failed to regenerate codes."
+      }
     }
   }
 }

@@ -220,7 +220,7 @@ export function SignInForm({ locale }: { locale: string }) {
                   </label>
                   <Link
                     href={`/${locale}/forgot-password`}
-                    className="text-xs text-primary hover:underline"
+                    className="text-xs text-primary hover:underline py-1 min-h-[24px] inline-flex items-center"
                   >
                     {t('forgotPassword')}
                   </Link>

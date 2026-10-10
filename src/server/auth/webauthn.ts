@@ -1,4 +1,5 @@
 import crypto from 'node:crypto';
+import { isoCBOR } from '@simplewebauthn/server/helpers';
 import { env } from '@/env';
 
 export interface WebAuthnConfig {
@@ -46,174 +47,17 @@ export function generateWebAuthnChallenge(): string {
 }
 
 /**
- * Encodes JavaScript data structures (Map, Array, Buffer, string, number) into standard CBOR.
+ * Encodes JavaScript data structures into standard CBOR using audited @simplewebauthn/server helper (I1-V08).
  */
 export function encodeCbor(value: unknown): Buffer {
-  if (typeof value === 'number') {
-    if (Number.isInteger(value)) {
-      if (value >= 0) {
-        if (value < 24) return Buffer.from([value]);
-        if (value <= 0xff) return Buffer.from([24, value]);
-        if (value <= 0xffff) {
-          const b = Buffer.alloc(3);
-          b[0] = 25;
-          b.writeUInt16BE(value, 1);
-          return b;
-        }
-        const b = Buffer.alloc(5);
-        b[0] = 26;
-        b.writeUInt32BE(value, 1);
-        return b;
-      } else {
-        const positive = -1 - value;
-        if (positive < 24) return Buffer.from([0x20 | positive]);
-        if (positive <= 0xff) return Buffer.from([0x20 | 24, positive]);
-        if (positive <= 0xffff) {
-          const b = Buffer.alloc(3);
-          b[0] = 0x20 | 25;
-          b.writeUInt16BE(positive, 1);
-          return b;
-        }
-        const b = Buffer.alloc(5);
-        b[0] = 0x20 | 26;
-        b.writeUInt32BE(positive, 1);
-        return b;
-      }
-    }
-  }
-
-  if (Buffer.isBuffer(value)) {
-    const len = value.length;
-    let header: Buffer;
-    if (len < 24) {
-      header = Buffer.from([0x40 | len]);
-    } else if (len <= 0xff) {
-      header = Buffer.from([0x40 | 24, len]);
-    } else if (len <= 0xffff) {
-      header = Buffer.alloc(3);
-      header[0] = 0x40 | 25;
-      header.writeUInt16BE(len, 1);
-    } else {
-      header = Buffer.alloc(5);
-      header[0] = 0x40 | 26;
-      header.writeUInt32BE(len, 1);
-    }
-    return Buffer.concat([header, value]);
-  }
-
-  if (typeof value === 'string') {
-    const strBuf = Buffer.from(value, 'utf8');
-    const len = strBuf.length;
-    let header: Buffer;
-    if (len < 24) {
-      header = Buffer.from([0x60 | len]);
-    } else if (len <= 0xff) {
-      header = Buffer.from([0x60 | 24, len]);
-    } else if (len <= 0xffff) {
-      header = Buffer.alloc(3);
-      header[0] = 0x60 | 25;
-      header.writeUInt16BE(len, 1);
-    } else {
-      header = Buffer.alloc(5);
-      header[0] = 0x60 | 26;
-      header.writeUInt32BE(len, 1);
-    }
-    return Buffer.concat([header, strBuf]);
-  }
-
-  if (Array.isArray(value)) {
-    const len = value.length;
-    let header: Buffer;
-    if (len < 24) {
-      header = Buffer.from([0x80 | len]);
-    } else {
-      header = Buffer.from([0x80 | 24, len]);
-    }
-    const itemBuffers = value.map((v) => encodeCbor(v));
-    return Buffer.concat([header, ...itemBuffers]);
-  }
-
-  if (value instanceof Map) {
-    const size = value.size;
-    let header: Buffer;
-    if (size < 24) {
-      header = Buffer.from([0xa0 | size]);
-    } else {
-      header = Buffer.from([0xa0 | 24, size]);
-    }
-    const entryBuffers: Buffer[] = [];
-    for (const [k, v] of value.entries()) {
-      entryBuffers.push(encodeCbor(k));
-      entryBuffers.push(encodeCbor(v));
-    }
-    return Buffer.concat([header, ...entryBuffers]);
-  }
-
-  throw new Error(`Unsupported type for CBOR encoding: ${typeof value}`);
+  return Buffer.from(isoCBOR.encode(value as Parameters<typeof isoCBOR.encode>[0]));
 }
 
 /**
- * Decodes a CBOR buffer into JavaScript types.
+ * Decodes a CBOR buffer into JavaScript types using audited @simplewebauthn/server helper (I1-V08).
  */
 export function decodeCbor(buffer: Buffer): unknown {
-  let offset = 0;
-
-  function decodeItem(): unknown {
-    if (offset >= buffer.length) {
-      throw new Error('Unexpected end of CBOR buffer');
-    }
-
-    const initialByte = buffer.readUInt8(offset++);
-    const majorType = initialByte >> 5;
-    let val = initialByte & 0x1f;
-
-    if (val === 24) {
-      val = buffer.readUInt8(offset++);
-    } else if (val === 25) {
-      val = buffer.readUInt16BE(offset);
-      offset += 2;
-    } else if (val === 26) {
-      val = buffer.readUInt32BE(offset);
-      offset += 4;
-    } else if (val === 27) {
-      const hi = buffer.readUInt32BE(offset);
-      const lo = buffer.readUInt32BE(offset + 4);
-      offset += 8;
-      val = Number(BigInt(hi) * 4294967296n + BigInt(lo));
-    }
-
-    if (majorType === 0) {
-      return val;
-    } else if (majorType === 1) {
-      return -1 - val;
-    } else if (majorType === 2) {
-      const bytes = buffer.subarray(offset, offset + val);
-      offset += val;
-      return bytes;
-    } else if (majorType === 3) {
-      const str = buffer.toString('utf8', offset, offset + val);
-      offset += val;
-      return str;
-    } else if (majorType === 4) {
-      const arr: unknown[] = [];
-      for (let i = 0; i < val; i++) {
-        arr.push(decodeItem());
-      }
-      return arr;
-    } else if (majorType === 5) {
-      const map = new Map<unknown, unknown>();
-      for (let i = 0; i < val; i++) {
-        const key = decodeItem();
-        const value = decodeItem();
-        map.set(key, value);
-      }
-      return map;
-    }
-
-    throw new Error(`Unsupported CBOR major type: ${majorType.toString()}`);
-  }
-
-  return decodeItem();
+  return isoCBOR.decodeFirst(new Uint8Array(buffer));
 }
 
 /**
@@ -295,10 +139,12 @@ export function coseKeyToSpkiPem(coseKey: Map<unknown, unknown>): string {
   // kty: 2 = EC2 (e.g. ES256)
   if (kty === 2) {
     const crv = coseKey.get(-1); // -1 = crv (1 = P-256)
-    const x = coseKey.get(-2); // -2 = x
-    const y = coseKey.get(-3); // -3 = y
+    const rawX = coseKey.get(-2);
+    const rawY = coseKey.get(-3);
+    const x = rawX ? Buffer.from(rawX as Uint8Array) : null;
+    const y = rawY ? Buffer.from(rawY as Uint8Array) : null;
 
-    if (crv !== 1 || !Buffer.isBuffer(x) || !Buffer.isBuffer(y)) {
+    if (crv !== 1 || !x || !y) {
       throw new Error('Unsupported EC2 curve or missing coordinates.');
     }
 
@@ -317,10 +163,12 @@ export function coseKeyToSpkiPem(coseKey: Map<unknown, unknown>): string {
 
   // kty: 3 = RSA (e.g. RS256)
   if (kty === 3) {
-    const n = coseKey.get(-1);
-    const e = coseKey.get(-2);
+    const rawN = coseKey.get(-1);
+    const rawE = coseKey.get(-2);
+    const n = rawN ? Buffer.from(rawN as Uint8Array) : null;
+    const e = rawE ? Buffer.from(rawE as Uint8Array) : null;
 
-    if (!Buffer.isBuffer(n) || !Buffer.isBuffer(e)) {
+    if (!n || !e) {
       throw new Error('Missing RSA modulus or exponent.');
     }
 
@@ -379,11 +227,11 @@ export async function verifyRegistrationResponse(params: {
   const attestationBuf = Buffer.from(params.response.response.attestationObject, 'base64url');
   const attestationMap = decodeCbor(attestationBuf) as Map<string, unknown>;
   const authDataRaw = attestationMap.get('authData');
+  const authData = authDataRaw ? Buffer.from(authDataRaw as Uint8Array) : null;
 
-  if (!Buffer.isBuffer(authDataRaw) || authDataRaw.length < 37) {
+  if (!authData || authData.length < 37) {
     throw new Error('Malformed authData in WebAuthn attestationObject.');
   }
-  const authData = authDataRaw;
 
   // Verify rpIdHash
   const expectedRpIdHash = crypto.createHash('sha256').update(expectedRpId).digest();

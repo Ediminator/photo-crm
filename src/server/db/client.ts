@@ -34,12 +34,18 @@ export function createPostgresClient(config: DbClientConfig = {}): postgres.Sql 
   });
 }
 
+import path from 'node:path';
+import fs from 'node:fs';
+import { PGlite } from '@electric-sql/pglite';
+import { drizzle as drizzlePglite } from 'drizzle-orm/pglite';
+
 export type DbClient = PostgresJsDatabase<typeof schema>;
 
 // Global singleton cache for Next.js hot-reload persistence in development
 const globalForDb = globalThis as unknown as {
   rawSql: postgres.Sql | undefined;
   db: DbClient | undefined;
+  pglite: PGlite | undefined;
 };
 
 export function getRawSql(): postgres.Sql {
@@ -48,7 +54,40 @@ export function getRawSql(): postgres.Sql {
 }
 
 export function getDb(): DbClient {
-  globalForDb.db ??= drizzle(getRawSql(), { schema });
+  if (globalForDb.db) {
+    return globalForDb.db;
+  }
+
+  if (process.env.USE_PGLITE === 'true') {
+    const dataDir = process.env.PGLITE_DATA_DIR
+      ? path.resolve(process.env.PGLITE_DATA_DIR)
+      : undefined;
+    globalForDb.pglite ??= new PGlite(dataDir);
+
+    try {
+      const drizzleDir = path.resolve(process.cwd(), 'drizzle');
+      const metaJournalPath = path.resolve(drizzleDir, 'meta/_journal.json');
+      if (fs.existsSync(metaJournalPath)) {
+        const journal = JSON.parse(fs.readFileSync(metaJournalPath, 'utf8')) as {
+          entries: { tag: string }[];
+        };
+        for (const entry of journal.entries) {
+          const sqlFile = path.resolve(drizzleDir, `${entry.tag}.sql`);
+          if (fs.existsSync(sqlFile)) {
+            const sql = fs.readFileSync(sqlFile, 'utf8');
+            void globalForDb.pglite.exec(sql);
+          }
+        }
+      }
+    } catch {
+      // Ignore migration errors if tables already exist
+    }
+
+    globalForDb.db = drizzlePglite(globalForDb.pglite, { schema }) as unknown as DbClient;
+    return globalForDb.db;
+  }
+
+  globalForDb.db = drizzle(getRawSql(), { schema });
   return globalForDb.db;
 }
 
