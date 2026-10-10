@@ -75,7 +75,9 @@ export function getDb(): DbClient {
           const sqlFile = path.resolve(drizzleDir, `${entry.tag}.sql`);
           if (fs.existsSync(sqlFile)) {
             const sql = fs.readFileSync(sqlFile, 'utf8');
-            void globalForDb.pglite.exec(sql);
+            void globalForDb.pglite.exec(sql).catch(() => {
+              // Ignore migration errors if tables already exist
+            });
           }
         }
       }

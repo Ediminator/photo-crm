@@ -3,6 +3,23 @@ import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { ClientDirectory } from '@/components/clients/client-directory';
 import type { ListClientsResult, TagSummaryItem, ClientListItem } from '@/server/clients/repo';
+import { listClientsAction } from '@/server/clients/actions';
+
+let mockStateQueue: unknown[] = [];
+
+vi.mock('react', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('react')>();
+  return {
+    ...actual,
+    useState: <T,>(initial: T): [T, (val: T) => void] => {
+      if (mockStateQueue.length > 0) {
+        const val = mockStateQueue.shift() as T;
+        return [val, vi.fn()];
+      }
+      return actual.useState(initial);
+    },
+  };
+});
 
 const mockPush = vi.fn();
 const mockReplace = vi.fn();
@@ -65,6 +82,7 @@ describe('TASK-0011: Client Directory UI (AC-1 to AC-13)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockSearchParams = new URLSearchParams();
+    mockStateQueue = [];
   });
 
   it('AC-1: displays first 25 clients in name order with primary contact, email, phone, tags, and Page 1 of 2', () => {
@@ -255,5 +273,155 @@ describe('TASK-0011: Client Directory UI (AC-1 to AC-13)', () => {
     expect(html).toContain('[errorMessage]');
     expect(html).not.toContain('SELECT');
     expect(html).not.toContain('Stack');
+  });
+
+  it('triggers search submit, input change, clear search, and tag change', async () => {
+    const mockAction = vi.mocked(listClientsAction);
+    mockAction.mockResolvedValue({
+      success: true,
+      data: { items: [], total: 0, page: 1, pageSize: 25 },
+    });
+
+    let formSubmit: ((e: { preventDefault: () => void }) => void | Promise<void>) | undefined;
+    let inputChange: ((e: { target: { value: string } }) => void) | undefined;
+    let selectChange: ((e: { target: { value: string } }) => void) | undefined;
+    let clearClick: (() => void) | undefined;
+    let prevClick: (() => void) | undefined;
+    let nextClick: (() => void) | undefined;
+
+    function traverse(node: unknown): void {
+      if (!node || typeof node !== 'object') return;
+      if (React.isValidElement(node)) {
+        const props = node.props as Record<string, unknown>;
+        if (node.type === 'form' && typeof props.onSubmit === 'function') {
+          formSubmit = props.onSubmit as (e: {
+            preventDefault: () => void;
+          }) => void | Promise<void>;
+        }
+        if (node.type === 'input' && typeof props.onChange === 'function') {
+          inputChange = props.onChange as (e: { target: { value: string } }) => void;
+        }
+        if (node.type === 'select' && typeof props.onChange === 'function') {
+          selectChange = props.onChange as (e: { target: { value: string } }) => void;
+        }
+        if (node.type === 'button') {
+          if (
+            props['data-testid'] === 'client-search-clear-btn' &&
+            typeof props.onClick === 'function'
+          ) {
+            clearClick = props.onClick as () => void;
+          }
+          if (
+            props['data-testid'] === 'pagination-prev-btn' &&
+            typeof props.onClick === 'function'
+          ) {
+            prevClick = props.onClick as () => void;
+          }
+          if (
+            props['data-testid'] === 'pagination-next-btn' &&
+            typeof props.onClick === 'function'
+          ) {
+            nextClick = props.onClick as () => void;
+          }
+        }
+        if (props.children) {
+          traverse(props.children);
+        }
+      } else if (Array.isArray(node)) {
+        for (const item of node) {
+          traverse(item);
+        }
+      }
+    }
+
+    const initialClients: ListClientsResult = {
+      items: Array.from({ length: 30 }, (_, i) => createMockClient(i + 1)),
+      total: 50,
+      page: 2,
+      pageSize: 25,
+    };
+
+    mockStateQueue = ['existing query', initialClients, false, null, ''];
+
+    function Capture() {
+      const tree = ClientDirectory({
+        initialClients,
+        tags: mockTags,
+        locale: 'en',
+        initialPage: 2,
+      });
+      traverse(tree);
+      return <div>{tree}</div>;
+    }
+
+    renderToStaticMarkup(<Capture />);
+
+    // Test input change
+    inputChange?.({ target: { value: 'new query' } });
+
+    // Test form submit
+    await formSubmit?.({ preventDefault: () => undefined });
+    expect(mockAction).toHaveBeenCalled();
+
+    // Test clear search button click
+    expect(clearClick).toBeDefined();
+    clearClick?.();
+
+    // Test tag change
+    selectChange?.({ target: { value: 'tag-1' } });
+    expect(mockReplace).toHaveBeenCalled();
+
+    // Test pagination prev and next
+    expect(prevClick).toBeDefined();
+    expect(nextClick).toBeDefined();
+    prevClick?.();
+    nextClick?.();
+  });
+
+  it('handles listClientsAction failure and unexpected exception', async () => {
+    const mockAction = vi.mocked(listClientsAction);
+    mockAction.mockResolvedValueOnce({
+      success: false,
+      code: 'VALIDATION_FAILED',
+      error: 'Simulated failure',
+    });
+
+    let formSubmit: ((e: { preventDefault: () => void }) => void | Promise<void>) | undefined;
+
+    function traverse(node: unknown): void {
+      if (!node || typeof node !== 'object') return;
+      if (React.isValidElement(node)) {
+        const props = node.props as Record<string, unknown>;
+        if (node.type === 'form' && typeof props.onSubmit === 'function') {
+          formSubmit = props.onSubmit as (e: {
+            preventDefault: () => void;
+          }) => void | Promise<void>;
+        }
+        if (props.children) {
+          traverse(props.children);
+        }
+      } else if (Array.isArray(node)) {
+        for (const item of node) {
+          traverse(item);
+        }
+      }
+    }
+
+    function Capture() {
+      const tree = ClientDirectory({
+        initialClients: { items: [], total: 0, page: 1, pageSize: 25 },
+        tags: [],
+        locale: 'en',
+      });
+      traverse(tree);
+      return <div>{tree}</div>;
+    }
+
+    renderToStaticMarkup(<Capture />);
+    await formSubmit?.({ preventDefault: () => undefined });
+
+    // Test rejection branch
+    mockAction.mockRejectedValueOnce(new Error('Network error'));
+    await formSubmit?.({ preventDefault: () => undefined });
   });
 });

@@ -169,4 +169,85 @@ describe('TASK-0011: Client Profile UI (AC-5, AC-8)', () => {
     expect(html).toContain('Musterstraße 42');
     expect(html).toContain('10115 Berlin');
   });
+
+  it('AC-5: handles person kind, English preferred language, empty tags, empty contacts and empty addresses', () => {
+    const emptyClient: ClientWithRelations = {
+      client: {
+        id: '018f0000-0000-7000-8000-000000000099',
+        kind: 'person',
+        displayName: 'John Doe',
+        preferredLocale: 'en',
+        createdAt: new Date('2026-01-01T00:00:00Z'),
+        lastActivityAt: new Date('2026-01-01T00:00:00Z'),
+        updatedAt: new Date('2026-01-01T00:00:00Z'),
+      },
+      contacts: [],
+      addresses: [],
+      tags: [],
+    };
+
+    const html = renderToStaticMarkup(
+      <ClientProfile clientData={emptyClient} locale="en" studioTimezone="UTC" />,
+    );
+
+    expect(html).toContain('Person');
+    expect(html).toContain('English');
+    expect(html).toContain('No tags assigned');
+    expect(html).toContain('No contacts recorded');
+    expect(html).toContain('No addresses recorded');
+  });
+
+  it('AC-5: handles contact without names or phone and invalid country code', () => {
+    const clientData: ClientWithRelations = {
+      client: {
+        id: '018f0000-0000-7000-8000-000000000088',
+        kind: 'person',
+        displayName: 'Solo Client',
+        preferredLocale: 'en',
+        createdAt: new Date('2026-01-01T00:00:00Z'),
+        lastActivityAt: new Date('2026-01-01T00:00:00Z'),
+        updatedAt: new Date('2026-01-01T00:00:00Z'),
+      },
+      contacts: [
+        {
+          id: 'contact-x',
+          clientId: '018f0000-0000-7000-8000-000000000088',
+          givenName: null,
+          familyName: null,
+          email: 'solo@example.com',
+          emailNormalized: 'solo@example.com',
+          phone: null,
+          isPrimary: false,
+          createdAt: new Date('2026-01-01T00:00:00Z'),
+          updatedAt: new Date('2026-01-01T00:00:00Z'),
+        },
+      ],
+      addresses: [
+        {
+          id: 'addr-x',
+          clientId: '018f0000-0000-7000-8000-000000000088',
+          type: 'postal',
+          line1: 'Nowhere St 1',
+          line2: null,
+          postalCode: '99999',
+          city: 'Unknown',
+          region: null,
+          countryCode: 'INVALID_COUNTRY_CODE',
+          createdAt: new Date('2026-01-01T00:00:00Z'),
+          updatedAt: new Date('2026-01-01T00:00:00Z'),
+        },
+      ],
+      tags: [],
+    };
+
+    const html = renderToStaticMarkup(
+      <ClientProfile clientData={clientData} locale="en" studioTimezone="UTC" />,
+    );
+
+    // Fallbacks to displayName if contact has no givenName/familyName
+    expect(html).toContain('Solo Client');
+    expect(html).toContain('solo@example.com');
+    // Country code falls back to raw code when invalid
+    expect(html).toContain('INVALID_COUNTRY_CODE');
+  });
 });

@@ -88,9 +88,9 @@ test.describe('App Shell, Theming, and Internationalization E2E', () => {
     await expect(page.locator('h1')).toHaveText('Anfragen');
 
     // Open another page without locale prefix to verify cookie persistence
-    await page.goto('/clients');
-    await expect(page).toHaveURL(/\/de\/clients$/);
-    await expect(page.locator('h1')).toHaveText('Kund:innen');
+    await page.goto('/projects');
+    await expect(page).toHaveURL(/\/de\/projects$/);
+    await expect(page.locator('h1')).toHaveText('Projekte');
   });
 
   test('AC-4: keyboard navigation has skip-link as first element, visible focus, and mobile drawer traps focus', async ({
