@@ -59,5 +59,72 @@
       "title": "Settings",
       "description": "Configure studio preferences, business data, and account details."
     }
+  },
+  "auth": {
+    "setup": {
+      "title": "Initial Studio Setup",
+      "description": "Bootstrap the studio owner account with your secure setup token.",
+      "setupToken": "Setup Token",
+      "setupTokenPlaceholder": "Paste the 32+ byte hex token from your server environment",
+      "name": "Full Name",
+      "namePlaceholder": "Jane Doe",
+      "email": "Owner Email Address",
+      "emailPlaceholder": "owner@example.com",
+      "password": "Master Password",
+      "passwordPlaceholder": "Minimum 12 characters",
+      "submit": "Create Owner Account",
+      "submitting": "Creating Owner Account...",
+      "alreadyCompleted": "Setup has already been completed.",
+      "successTitle": "Studio Setup Complete",
+      "successMessage": "Your owner account has been configured successfully."
+    },
+    "signIn": {
+      "title": "Studio Sign In",
+      "description": "Sign in to access your photography studio dashboard.",
+      "email": "Email Address",
+      "emailPlaceholder": "photographer@example.com",
+      "password": "Password",
+      "passwordPlaceholder": "Enter your password",
+      "submit": "Sign In",
+      "submitting": "Signing in...",
+      "forgotPassword": "Forgot your password?",
+      "setupLink": "Need initial setup?"
+    },
+    "forgotPassword": {
+      "title": "Forgot Password",
+      "description": "Enter your email address to receive a secure password reset link.",
+      "email": "Email Address",
+      "emailPlaceholder": "photographer@example.com",
+      "submit": "Send Reset Link",
+      "submitting": "Sending Reset Link...",
+      "backToSignIn": "Back to sign in",
+      "successMessage": "If an account exists for this email address, a password reset link has been dispatched."
+    },
+    "resetPassword": {
+      "title": "Reset Password",
+      "description": "Enter your new password to regain access to your account.",
+      "newPassword": "New Password",
+      "newPasswordPlaceholder": "Minimum 12 characters",
+      "confirmPassword": "Confirm Password",
+      "confirmPasswordPlaceholder": "Re-enter your new password",
+      "submit": "Update Password",
+      "submitting": "Updating Password...",
+      "passwordMismatch": "Passwords do not match.",
+      "successTitle": "Password Updated",
+      "successMessage": "Your password has been changed. You can now sign in with your new credentials.",
+      "backToSignIn": "Proceed to sign in"
+    },
+    "verifyEmail": {
+      "title": "Email Verification",
+      "description": "Verify your email address for secure communications.",
+      "instruction": "Please click the link sent to your email to verify your address.",
+      "backToSignIn": "Return to sign in",
+      "statusVerified": "Your email address has been verified successfully."
+    },
+    "common": {
+      "or": "or",
+      "loading": "Loading...",
+      "error": "Error"
+    }
   }
 }

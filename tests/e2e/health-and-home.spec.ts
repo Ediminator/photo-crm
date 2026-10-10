@@ -1,7 +1,17 @@
 import { test, expect } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
 
+const TEST_AUTH_COOKIE = {
+  name: 'photo_crm_session',
+  value: 'e2e-session-valid-token',
+  url: 'http://localhost:3000',
+};
+
 test.describe('E2E: Health Endpoint and Bilingual Home Pages', () => {
+  test.beforeEach(async ({ context }) => {
+    await context.addCookies([TEST_AUTH_COOKIE]);
+  });
+
   test('AC-7: GET /api/health returns 200 ok with Cache-Control no-store and zero extra fields', async ({
     request,
   }) => {

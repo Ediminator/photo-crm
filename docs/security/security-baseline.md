@@ -6,19 +6,22 @@ This document establishes the mandatory security standards and controls for the 
 
 ## 1. Authentication & Session Management (ASVS V6, V7)
 
-- **Authentication Engine:** Self-hosted Better-Auth with PostgreSQL/Drizzle adapter.
-- **Password Policy:** Minimum 12 characters, up to 128+ characters. No restrictive character-set rules. Checked offline against common/breached password dictionaries.
-- **Password Hashing:** `argon2id` with parameters: `m=65536` (64 MB), `t=3`, `p=4` (or Better-Auth recommended baseline).
-- **Multi-Factor Authentication (MFA):** TOTP (RFC 6238) and WebAuthn/Passkeys. TOTP secrets encrypted at rest.
-- **Cookies:** `HttpOnly`, `Secure` (production), `SameSite=Lax`, with `__Host-` or `__Secure-` prefix.
-- **Session Lifecycle:** Rotated on sign-in and privilege change. Configurable idle timeout (default 7 days) and absolute timeout (30 days). Server-side invalidation and global revocation ("sign out all devices").
+- **Authentication Engine:** Self-hosted Better-Auth with PostgreSQL/Drizzle adapter (`better-auth@1.7.7`).
+- **Owner Bootstrap:** Protected by `SETUP_TOKEN` with entropy verification (≥ 32 random bytes / 64 hex characters), constant-time comparison (`crypto.timingSafeEqual`), PostgreSQL transactional advisory lock (`pg_advisory_xact_lock(746869)`), permanently disabled with 404 once owner user exists.
+- **Password Policy:** Minimum 12 characters, up to 1024 characters. Supports spaces and emoji. No composition rules. Checked offline against a bundled dictionary of 7,158 common/breached passwords (`src/server/auth/passwords/common-passwords.json`).
+- **Password Hashing:** OWASP-compliant `argon2id` via `@node-rs/argon2`: `memoryCost=65536` (64 MB), `timeCost=3`, `parallelism=4`, key length 32 bytes.
+- **Email Verification & Password Reset:** Handled via SMTP (`nodemailer`). Reset tokens expire in ≤ 30 minutes, are single-use, and are stored hashed with SHA-256 (`verification` table). Requests return identical generic responses regardless of account existence to prevent user enumeration.
+- **Multi-Factor Authentication (MFA):** TOTP (RFC 6238) and WebAuthn/Passkeys (deferred to TASK-0008).
+- **Cookies:** `HttpOnly`, `SameSite=Lax`, `__Secure-photo_crm_session` in production (`photo_crm_session` in dev), with `Path=/`.
+- **Session Lifecycle:** Rotated on sign-in and privilege change to prevent session fixation. Configurable idle timeout (default 7 days) and absolute timeout (30 days). Server-side invalidation (`revokeSession`) and global revocation (`signOutEverywhere` invalidates all user sessions).
 - **Client Portal Access:** Expiring (≤ 15 min) single-use magic links, or scoped, revocable per-project tokens stored hashed with SHA-256.
 
 ---
 
 ## 2. Access Control & Authorization (ASVS V8)
 
-- **Default Deny:** All endpoints, server actions, and route handlers require explicit authentication and authorization unless designated in an allowlist.
+- **Default Deny:** All endpoints, server actions, and route handlers require explicit authentication and authorization via `requireOwner()` or `requireAuth({ scopes })` unless explicitly designated in `PUBLIC_AUTH_ACTIONS` allowlist.
+- **Programmatic API Keys:** Scoped API tokens formatted as `pcrm_live_<32_bytes_hex>`. Displayed once to user and persisted only as SHA-256 hashes in `api_keys` table. Granular scopes (`clients:read`, `clients:write`, `projects:read`, `projects:write`, `settings:read`, `settings:write`). Route guard validates active session (all scopes) or matching key scope.
 - **Object-Level Scoping:** Bare IDs from client requests are never trusted. All database reads and writes must include ownership criteria:
   ```typescript
   // Example pattern in repository layer:
@@ -36,7 +39,7 @@ This document establishes the mandatory security standards and controls for the 
 - **Validation at Boundaries:** All input to server actions and route handlers must be parsed using `zod` schemas with `.strict()`. Free-text fields have strict maximum length constraints.
 - **Mass Assignment Prevention:** Data objects for database insertion must be constructed explicitly from schema-validated fields; never pass spread request bodies directly into ORM mutations.
 - **Sanitisation:** Any user-controlled rich text or markdown (contract templates, questionnaires) must be sanitised with DOMPurify on both input and render.
-- **Anti-Automation & Rate Limiting:** All authentication, password-reset, magic link, and public inquiry endpoints must be protected by IP- and identifier-based rate limiting stored in PostgreSQL.
+- **Anti-Automation & Rate Limiting:** All authentication and public entry endpoints are protected by DB-backed rate limiting surviving restarts (`rate_limits` table with sliding window). Throttles after 10 failed sign-in attempts per 15 min per account, and after 50 failures per 15 min per IP across accounts.
 
 ---
 
@@ -50,7 +53,7 @@ This document establishes the mandatory security standards and controls for the 
 
 ## 5. Security Headers & Network Security (ASVS V3, V12)
 
-- **HTTP Headers:** Nonce-based Content Security Policy (`script-src 'self' 'nonce-...' 'strict-dynamic'`, `object-src 'none'`, `base-uri 'none'`, `frame-ancestors 'none'`), HTTP Strict Transport Security (HSTS), `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`, `Permissions-Policy`.
+- **HTTP Headers:** Nonce-based Content Security Policy with `strict-dynamic` (`script-src 'self' 'nonce-...' 'strict-dynamic'`, no `unsafe-inline` scripts), HTTP Strict Transport Security (`max-age=63072000; includeSubDomains; preload` in production), `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`, `Permissions-Policy: camera=(), microphone=(), geolocation=()`, `Cross-Origin-Opener-Policy: same-origin`, `X-Frame-Options: DENY`, `frame-ancestors 'none'`.
 - **SSRF Protection:** Outbound HTTP requests to user-configured endpoints (CalDAV servers, webhooks) must be validated using an SSRF-safe client that rejects private, link-local, loopback, and cloud metadata IP ranges.
 
 ---

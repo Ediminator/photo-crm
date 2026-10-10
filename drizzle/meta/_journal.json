@@ -8,6 +8,13 @@
       "when": 1791582546572,
       "tag": "0000_little_marvex",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1791589164239,
+      "tag": "0001_new_hydra",
+      "breakpoints": true
     }
   ]
 }

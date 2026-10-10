@@ -96,6 +96,19 @@ describe('Shell Layout and Navigation Components', () => {
     expect(html).toContain('Dashboard Content');
   });
 
+  it('renders AppShell component with focused layout when isAuthRoute is true', () => {
+    const html = renderToStaticMarkup(
+      <AppShell isAuthRoute={true}>
+        <div id="auth-child">Auth Form Content</div>
+      </AppShell>,
+    );
+    expect(html).toContain('main-content');
+    expect(html).toContain('Auth Form Content');
+    // Sidebar and mobile nav should NOT be rendered in focused auth layout
+    expect(html).not.toContain('translated-openMenu');
+    expect(html).not.toContain('translated-owner');
+  });
+
   it('renders ThemeProvider and ThemeToggle, executing theme changes', () => {
     const providerHtml = renderToStaticMarkup(
       <ThemeProvider>

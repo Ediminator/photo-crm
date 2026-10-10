@@ -59,5 +59,72 @@
       "title": "Einstellungen",
       "description": "Studio-Einstellungen, Unternehmensdaten und Kontodetails konfigurieren."
     }
+  },
+  "auth": {
+    "setup": {
+      "title": "Ersteinrichtung des Studios",
+      "description": "Richten Sie das Inhaber-Konto mit Ihrem sicheren Setup-Token ein.",
+      "setupToken": "Setup-Token",
+      "setupTokenPlaceholder": "Fügen Sie das 32+ Byte Hex-Token aus Ihrer Serverumgebung ein",
+      "name": "Vollständiger Name",
+      "namePlaceholder": "Max Mustermann",
+      "email": "Inhaber-E-Mail-Adresse",
+      "emailPlaceholder": "inhaber@example.com",
+      "password": "Master-Passwort",
+      "passwordPlaceholder": "Mindestens 12 Zeichen",
+      "submit": "Inhaber-Konto erstellen",
+      "submitting": "Konto wird erstellt...",
+      "alreadyCompleted": "Die Ersteinrichtung wurde bereits abgeschlossen.",
+      "successTitle": "Studio-Einrichtung abgeschlossen",
+      "successMessage": "Ihr Inhaber-Konto wurde erfolgreich eingerichtet."
+    },
+    "signIn": {
+      "title": "Studio-Anmeldung",
+      "description": "Melden Sie sich an, um auf Ihr Fotostudio-Dashboard zuzugreifen.",
+      "email": "E-Mail-Adresse",
+      "emailPlaceholder": "fotograf@example.com",
+      "password": "Passwort",
+      "passwordPlaceholder": "Geben Sie Ihr Passwort ein",
+      "submit": "Anmelden",
+      "submitting": "Wird angemeldet...",
+      "forgotPassword": "Passwort vergessen?",
+      "setupLink": "Ersteinrichtung erforderlich?"
+    },
+    "forgotPassword": {
+      "title": "Passwort vergessen",
+      "description": "Geben Sie Ihre E-Mail-Adresse ein, um einen sicheren Link zum Zurücksetzen zu erhalten.",
+      "email": "E-Mail-Adresse",
+      "emailPlaceholder": "fotograf@example.com",
+      "submit": "Link anfordern",
+      "submitting": "Link wird gesendet...",
+      "backToSignIn": "Zurück zur Anmeldung",
+      "successMessage": "Falls ein Konto für diese E-Mail-Adresse existiert, wurde ein Link zum Zurücksetzen gesendet."
+    },
+    "resetPassword": {
+      "title": "Passwort zurücksetzen",
+      "description": "Geben Sie Ihr neues Passwort ein, um wieder Zugriff auf Ihr Konto zu erhalten.",
+      "newPassword": "Neues Passwort",
+      "newPasswordPlaceholder": "Mindestens 12 Zeichen",
+      "confirmPassword": "Passwort bestätigen",
+      "confirmPasswordPlaceholder": "Geben Sie Ihr neues Passwort erneut ein",
+      "submit": "Passwort aktualisieren",
+      "submitting": "Passwort wird aktualisiert...",
+      "passwordMismatch": "Die Passwörter stimmen nicht überein.",
+      "successTitle": "Passwort aktualisiert",
+      "successMessage": "Ihr Passwort wurde geändert. Sie können sich nun mit Ihren neuen Zugangsdaten anmelden.",
+      "backToSignIn": "Weiter zur Anmeldung"
+    },
+    "verifyEmail": {
+      "title": "E-Mail-Bestätigung",
+      "description": "Bestätigen Sie Ihre E-Mail-Adresse für sichere Kommunikation.",
+      "instruction": "Bitte klicken Sie auf den Link in der E-Mail, um Ihre Adresse zu bestätigen.",
+      "backToSignIn": "Zurück zur Anmeldung",
+      "statusVerified": "Ihre E-Mail-Adresse wurde erfolgreich bestätigt."
+    },
+    "common": {
+      "or": "oder",
+      "loading": "Wird geladen...",
+      "error": "Fehler"
+    }
   }
 }

@@ -1,3 +1,4 @@
+import { headers } from 'next/headers';
 import type { ReactNode } from 'react';
 import { notFound } from 'next/navigation';
 import { hasLocale, NextIntlClientProvider } from 'next-intl';
@@ -18,6 +19,14 @@ export function generateStaticParams() {
   return routing.locales.map((locale) => ({ locale }));
 }
 
+const AUTH_PATH_SEGMENTS = [
+  'sign-in',
+  'setup',
+  'forgot-password',
+  'reset-password',
+  'verify-email',
+];
+
 export default async function LocaleLayout({ children, params }: LocaleLayoutProps) {
   const { locale } = await params;
 
@@ -26,6 +35,22 @@ export default async function LocaleLayout({ children, params }: LocaleLayoutPro
   }
 
   const messages = locale === 'de' ? deMessages : enMessages;
+
+  let nonce: string | undefined;
+  let isAuthRoute = false;
+  try {
+    const headersList = await headers();
+    nonce = headersList.get('x-nonce') ?? undefined;
+    const authHeader = headersList.get('x-is-auth-route');
+    const pathnameHeader = headersList.get('x-pathname') ?? '';
+    const matchesAuthSegment = AUTH_PATH_SEGMENTS.some((segment) =>
+      pathnameHeader.includes(`/${segment}`),
+    );
+    isAuthRoute = authHeader === '1' || matchesAuthSegment;
+  } catch {
+    nonce = undefined;
+    isAuthRoute = false;
+  }
 
   return (
     <html
@@ -45,8 +70,9 @@ export default async function LocaleLayout({ children, params }: LocaleLayoutPro
             defaultTheme="system"
             enableSystem
             disableTransitionOnChange
+            nonce={nonce}
           >
-            <AppShell>{children}</AppShell>
+            <AppShell isAuthRoute={isAuthRoute}>{children}</AppShell>
           </ThemeProvider>
         </NextIntlClientProvider>
       </body>

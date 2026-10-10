@@ -28,8 +28,17 @@ describe('AC-1: Database migrations and drift detection', () => {
       expect(fs.existsSync(sqlFile)).toBe(true);
       const sqlContent = fs.readFileSync(sqlFile, 'utf8');
       expect(sqlContent.length).toBeGreaterThan(0);
-      expect(sqlContent).toContain('studio_settings');
     }
+    const firstEntry = journal.entries[0];
+    expect(firstEntry).toBeDefined();
+    if (!firstEntry) {
+      throw new Error('Expected at least one journal entry');
+    }
+    const initialMigration = fs.readFileSync(
+      path.resolve(drizzleDir, `${firstEntry.tag}.sql`),
+      'utf8',
+    );
+    expect(initialMigration).toContain('studio_settings');
   });
 
   it('AC-1: given an empty database, migrations apply all tables and constraints', async () => {
