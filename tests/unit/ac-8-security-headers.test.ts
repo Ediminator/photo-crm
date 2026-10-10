@@ -112,4 +112,17 @@ describe('AC-8: Security headers and Content Security Policy with per-request no
     expect(location).toContain('/de/sign-in');
     expect(location).not.toContain('callbackUrl');
   });
+
+  it('AC-8 / I1-U03: marks public auth routes with x-is-auth-route header', () => {
+    const authReq = new NextRequest('http://localhost:3000/en/sign-in');
+    const authRes = middleware(authReq);
+    expect(authRes.headers.get('x-is-auth-route')).toBe('1');
+    expect(authRes.headers.get('x-pathname')).toBe('/en/sign-in');
+
+    const protectedReq = new NextRequest('http://localhost:3000/en/leads', {
+      headers: { cookie: `${STANDARD_SESSION_COOKIE}=valid-token` },
+    });
+    const protectedRes = middleware(protectedReq);
+    expect(protectedRes.headers.get('x-is-auth-route')).toBeNull();
+  });
 });

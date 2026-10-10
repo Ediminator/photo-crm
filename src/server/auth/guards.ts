@@ -1,4 +1,4 @@
-import { cookies } from 'next/headers';
+import { headers, cookies } from 'next/headers';
 import { db as defaultDb, type DbClient } from '@/server/db/client';
 import { type User, type Session } from '@/server/db/schema/auth';
 import { verifySession, SESSION_COOKIE_NAME, SECURE_SESSION_COOKIE_NAME } from './session';
@@ -72,8 +72,18 @@ export function extractBearerToken(
 export async function requireAuth(options: RequireAuthOptions = {}): Promise<AuthContext> {
   const client = options.client ?? defaultDb;
 
+  // Inspect explicit options.headers or fall back to next/headers headers()
+  let headerSource = options.headers;
+  if (!headerSource) {
+    try {
+      headerSource = await headers();
+    } catch {
+      headerSource = undefined;
+    }
+  }
+
   // 1. Check Bearer API Token
-  const bearerToken = extractBearerToken(options.headers);
+  const bearerToken = extractBearerToken(headerSource);
   if (bearerToken) {
     if (!bearerToken.startsWith(API_KEY_PREFIX)) {
       throw new UnauthorizedError('Malformed API key format.');
@@ -129,11 +139,11 @@ export async function requireAuth(options: RequireAuthOptions = {}): Promise<Aut
   }
 
   // If not found in cookieStore, try headers object directly if passed
-  if (!sessionToken && options.headers) {
+  if (!sessionToken && headerSource) {
     const cookieHeader =
-      typeof (options.headers as Headers).get === 'function'
-        ? (options.headers as Headers).get('cookie')
-        : (options.headers as Record<string, string | undefined>).cookie;
+      typeof (headerSource as Headers).get === 'function'
+        ? (headerSource as Headers).get('cookie')
+        : (headerSource as Record<string, string | undefined>).cookie;
 
     if (cookieHeader) {
       const secureMatch = /__Secure-photo_crm_session=([^;]+)/.exec(cookieHeader);
@@ -172,5 +182,14 @@ export async function requireOwner(
   if (context.user.role !== 'owner') {
     throw new ForbiddenError('Owner role required for this action.');
   }
+
+  // If authenticated via API key, it must possess full administrative scope ('*' or 'admin')
+  if (context.authType === 'apiKey') {
+    const hasAdminScope = context.scopes.includes('*') || context.scopes.includes('admin');
+    if (!hasAdminScope) {
+      throw new ForbiddenError('API key lacks administrative scope required for this action.');
+    }
+  }
+
   return context;
 }

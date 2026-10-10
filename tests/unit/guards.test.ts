@@ -2,6 +2,15 @@ import { describe, it, expect, vi } from 'vitest';
 
 vi.mock('server-only', () => ({}));
 
+vi.mock('next/headers', () => ({
+  headers: () =>
+    Promise.resolve({
+      get: (name: string) =>
+        name.toLowerCase() === 'authorization' ? 'Bearer pcrm_live_from_next_headers' : null,
+    }),
+  cookies: () => Promise.resolve({ get: () => undefined }),
+}));
+
 import { extractBearerToken, requireAuth } from '@/server/auth/guards';
 import type { DbClient } from '@/server/db/client';
 
@@ -40,10 +49,28 @@ describe('Authentication and authorization guards (guards.ts)', () => {
     it('throws UnauthorizedError when neither API key nor session cookie is provided', async () => {
       await expect(
         requireAuth({
-          headers: {},
+          headers: { authorization: undefined },
           client: {} as DbClient,
         }),
       ).rejects.toThrow('Authentication required. No session or API key provided.');
+    });
+
+    it('I1-S07: automatically falls back to next/headers headers() when options.headers is omitted', async () => {
+      // Calling requireAuth() without options.headers will pick up 'Bearer pcrm_live_from_next_headers'
+      // and fail on invalid API key verification rather than 'No session or API key provided.'
+      await expect(
+        requireAuth({
+          client: {
+            select: () => ({
+              from: () => ({
+                where: () => ({
+                  limit: () => [],
+                }),
+              }),
+            }),
+          } as unknown as DbClient,
+        }),
+      ).rejects.toThrow('Invalid API key.');
     });
 
     it('extracts session cookie from headers object and throws when invalid', async () => {

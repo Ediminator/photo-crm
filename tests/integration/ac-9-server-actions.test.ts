@@ -250,4 +250,84 @@ describe('AC-9: Server Actions Execution, Authorization, and Session Lifecycle',
       'Owner role required for this action.',
     );
   });
+
+  it('AC-9 / I1-S04: setupOwnerAction throttles after repeated failed setup attempts', async () => {
+    const dbClient = testDb.db as unknown as DbClient;
+
+    // Fail 10 times
+    for (let i = 0; i < 10; i++) {
+      const res = await setupOwnerAction(
+        {
+          setupToken: 'wrong_token',
+          name: 'Attacker',
+          email: 'attacker@example.com',
+          password: 'Password123!',
+        },
+        dbClient,
+      );
+      expect(res.success).toBe(false);
+    }
+
+    // 11th call must be blocked by rate limiter
+    const blockedRes = await setupOwnerAction(
+      {
+        setupToken: validSetupToken, // Even with valid token now!
+        name: 'Attacker',
+        email: 'attacker@example.com',
+        password: 'Password123!',
+      },
+      dbClient,
+    );
+    expect(blockedRes.success).toBe(false);
+    expect(blockedRes.error).toBe('Too many setup attempts. Please try again later.');
+  });
+
+  it('AC-9 / I1-S04: requestPasswordResetAction throttles after exceeding rate limit', async () => {
+    const dbClient = testDb.db as unknown as DbClient;
+    const mockTransporter = {
+      sendMail: () => Promise.resolve({ messageId: 'msg' }),
+    } as unknown as import('nodemailer').Transporter;
+
+    for (let i = 0; i < 5; i++) {
+      const res = await requestPasswordResetAction(
+        { email: 'frequent-user@example.com' },
+        { client: dbClient, transporter: mockTransporter },
+      );
+      expect(res.success).toBe(true);
+    }
+
+    const throttledRes = await requestPasswordResetAction(
+      { email: 'frequent-user@example.com' },
+      { client: dbClient, transporter: mockTransporter },
+    );
+    expect(throttledRes.success).toBe(false);
+    expect(throttledRes.error).toBe('Too many password reset requests. Please try again later.');
+  });
+
+  it('AC-9 / I1-S04: resetPasswordAction throttles after repeated invalid reset attempts', async () => {
+    const dbClient = testDb.db as unknown as DbClient;
+
+    for (let i = 0; i < 10; i++) {
+      const res = await resetPasswordAction(
+        {
+          email: 'brute-target@example.com',
+          token: `invalid-token-${String(i)}`,
+          newPassword: 'BrandNewPassword123!',
+        },
+        dbClient,
+      );
+      expect(res.success).toBe(false);
+    }
+
+    const throttledRes = await resetPasswordAction(
+      {
+        email: 'brute-target@example.com',
+        token: 'another-token',
+        newPassword: 'BrandNewPassword123!',
+      },
+      dbClient,
+    );
+    expect(throttledRes.success).toBe(false);
+    expect(throttledRes.error).toBe('Too many password reset attempts. Please try again later.');
+  });
 });

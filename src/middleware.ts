@@ -124,12 +124,20 @@ export default function middleware(request: NextRequest): NextResponse {
     .replace(/\s{2,}/g, ' ')
     .trim();
 
-  // 3. Pass nonce to request headers so React / Next.js can read it in server components
+  // 3. Route metadata & session inspection
+  const authenticated = hasValidSessionCookie(request);
+  const isPublic = isPublicPath(pathname);
+
+  // 4. Pass nonce and metadata to request headers so React / Next.js can read them in server components
   const requestHeaders = new Headers(request.headers);
   requestHeaders.set('x-nonce', nonce);
   requestHeaders.set('Content-Security-Policy', cspHeader);
+  requestHeaders.set('x-pathname', pathname);
+  if (isPublic) {
+    requestHeaders.set('x-is-auth-route', '1');
+  }
 
-  // 4. Root path locale negotiation: delegate '/' to intlMiddleware first
+  // 5. Root path locale negotiation: delegate '/' to intlMiddleware first
   if (pathname === '/') {
     const response = intlMiddleware(
       new NextRequest(request, {
@@ -137,13 +145,11 @@ export default function middleware(request: NextRequest): NextResponse {
       }),
     );
     applySecurityHeaders(response, cspHeader, nonce, isProd);
+    response.headers.set('x-pathname', pathname);
     return response;
   }
 
-  // 5. Route protection: redirect unauthenticated requests to protected app routes
-  const authenticated = hasValidSessionCookie(request);
-  const isPublic = isPublicPath(pathname);
-
+  // 6. Route protection: redirect unauthenticated requests to protected app routes
   if (!isPublic && !authenticated) {
     const locale = extractLocale(pathname);
     const signInUrl = new URL(`/${locale}/sign-in`, request.url);
@@ -155,15 +161,21 @@ export default function middleware(request: NextRequest): NextResponse {
     return redirectResponse;
   }
 
-  // 6. Delegate to next-intl middleware for locale negotiation
+  // 7. Delegate to next-intl middleware for locale negotiation
   const response = intlMiddleware(
     new NextRequest(request, {
       headers: requestHeaders,
     }),
   );
 
-  // 7. Apply mandatory security headers
+  // 8. Apply mandatory security headers and route metadata
   applySecurityHeaders(response, cspHeader, nonce, isProd);
+  response.headers.set('x-pathname', pathname);
+  response.headers.set('x-middleware-request-x-pathname', pathname);
+  if (isPublic) {
+    response.headers.set('x-is-auth-route', '1');
+    response.headers.set('x-middleware-request-x-is-auth-route', '1');
+  }
 
   return response;
 }

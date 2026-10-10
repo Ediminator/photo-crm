@@ -204,4 +204,56 @@ describe('AC-11: API key authentication, scope enforcement, and revocation', () 
     expect(res3.valid).toBe(false);
     expect(res3.error).toBe('not_found');
   });
+
+  it('I1-S02: requireOwner rejects API key with limited scopes (e.g. clients:read) with 403 Forbidden', async () => {
+    const dbClient = testDb.db as unknown as DbClient;
+
+    const [owner] = await dbClient
+      .insert(user)
+      .values({
+        name: 'Scoped Owner',
+        email: 'scoped-owner@example.com',
+        role: 'owner',
+      })
+      .returning();
+
+    expect(owner).toBeDefined();
+    if (!owner) throw new Error('Expected owner to be defined');
+
+    // Key with only read scope
+    const { apiKey: readKey } = await createApiKey({
+      userId: owner.id,
+      name: 'Read Key',
+      scopes: ['clients:read'],
+      client: dbClient,
+    });
+
+    const { requireOwner } = await import('@/server/auth/guards');
+
+    // Limited scope key MUST be rejected by requireOwner with 403 Forbidden
+    await expect(
+      requireOwner({
+        headers: {
+          authorization: `Bearer ${readKey}`,
+        },
+        client: dbClient,
+      }),
+    ).rejects.toThrow('API key lacks administrative scope required for this action.');
+
+    // Key with admin/wildcard scope MUST be allowed
+    const { apiKey: adminKey } = await createApiKey({
+      userId: owner.id,
+      name: 'Admin Key',
+      scopes: ['*'],
+      client: dbClient,
+    });
+
+    const adminContext = await requireOwner({
+      headers: {
+        authorization: `Bearer ${adminKey}`,
+      },
+      client: dbClient,
+    });
+    expect(adminContext.user.id).toBe(owner.id);
+  });
 });

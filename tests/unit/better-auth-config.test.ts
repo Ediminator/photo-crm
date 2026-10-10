@@ -50,4 +50,42 @@ describe('Better-Auth instance configuration and hooks', () => {
     expect(instanceA).toBe(instanceB);
     expect(auth.options).toBeDefined();
   });
+
+  it('I1-S01: disables unauthenticated public email sign-up', () => {
+    const mockDb = {} as unknown as DbClient;
+    const instance = createAuthInstance(mockDb);
+    expect(instance.options.emailAndPassword.disableSignUp).toBe(true);
+  });
+
+  it('I1-S06: fails fast in production if AUTH_SECRET is missing or matches placeholder', () => {
+    const mockDb = {} as unknown as DbClient;
+    const originalEnv = process.env.NODE_ENV;
+    const originalSecret = process.env.AUTH_SECRET;
+
+    try {
+      (process.env as Record<string, string | undefined>).NODE_ENV = 'production';
+      delete process.env.AUTH_SECRET;
+
+      expect(() => createAuthInstance(mockDb)).toThrow(
+        'AUTH_SECRET is required and must be at least 32 characters in production.',
+      );
+
+      process.env.AUTH_SECRET = '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
+      expect(() => createAuthInstance(mockDb)).toThrow(
+        'AUTH_SECRET is required and must be at least 32 characters in production.',
+      );
+
+      process.env.AUTH_SECRET = 'too-short';
+      expect(() => createAuthInstance(mockDb)).toThrow(
+        'AUTH_SECRET is required and must be at least 32 characters in production.',
+      );
+    } finally {
+      (process.env as Record<string, string | undefined>).NODE_ENV = originalEnv;
+      if (originalSecret !== undefined) {
+        process.env.AUTH_SECRET = originalSecret;
+      } else {
+        delete process.env.AUTH_SECRET;
+      }
+    }
+  });
 });

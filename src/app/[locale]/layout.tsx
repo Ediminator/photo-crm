@@ -19,6 +19,14 @@ export function generateStaticParams() {
   return routing.locales.map((locale) => ({ locale }));
 }
 
+const AUTH_PATH_SEGMENTS = [
+  'sign-in',
+  'setup',
+  'forgot-password',
+  'reset-password',
+  'verify-email',
+];
+
 export default async function LocaleLayout({ children, params }: LocaleLayoutProps) {
   const { locale } = await params;
 
@@ -29,11 +37,19 @@ export default async function LocaleLayout({ children, params }: LocaleLayoutPro
   const messages = locale === 'de' ? deMessages : enMessages;
 
   let nonce: string | undefined;
+  let isAuthRoute = false;
   try {
     const headersList = await headers();
     nonce = headersList.get('x-nonce') ?? undefined;
+    const authHeader = headersList.get('x-is-auth-route');
+    const pathnameHeader = headersList.get('x-pathname') ?? '';
+    const matchesAuthSegment = AUTH_PATH_SEGMENTS.some((segment) =>
+      pathnameHeader.includes(`/${segment}`),
+    );
+    isAuthRoute = authHeader === '1' || matchesAuthSegment;
   } catch {
     nonce = undefined;
+    isAuthRoute = false;
   }
 
   return (
@@ -56,7 +72,7 @@ export default async function LocaleLayout({ children, params }: LocaleLayoutPro
             disableTransitionOnChange
             nonce={nonce}
           >
-            <AppShell>{children}</AppShell>
+            <AppShell isAuthRoute={isAuthRoute}>{children}</AppShell>
           </ThemeProvider>
         </NextIntlClientProvider>
       </body>

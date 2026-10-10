@@ -48,10 +48,11 @@ export function SetupForm({ locale }: { locale: string }) {
         <form onSubmit={handleSubmit} data-testid="setup-form" className="space-y-4" noValidate>
           {error && (
             <div
+              id="setup-error-msg"
               role="alert"
               aria-live="polite"
               data-testid="setup-error"
-              className="p-3 text-sm text-destructive bg-destructive/10 border border-destructive/20 rounded-md"
+              className="p-3 text-sm font-medium rounded-md border text-red-950 bg-red-100 border-red-300 dark:text-red-100 dark:bg-red-950 dark:border-red-800"
             >
               {error}
             </div>
@@ -71,6 +72,8 @@ export function SetupForm({ locale }: { locale: string }) {
               type="password"
               autoComplete="off"
               required
+              aria-invalid={Boolean(error)}
+              aria-describedby={error ? 'setup-error-msg' : undefined}
               value={setupToken}
               onChange={(e) => {
                 setSetupToken(e.target.value);
@@ -94,6 +97,8 @@ export function SetupForm({ locale }: { locale: string }) {
               type="text"
               autoComplete="name"
               required
+              aria-invalid={Boolean(error)}
+              aria-describedby={error ? 'setup-error-msg' : undefined}
               value={name}
               onChange={(e) => {
                 setName(e.target.value);
@@ -117,6 +122,8 @@ export function SetupForm({ locale }: { locale: string }) {
               type="email"
               autoComplete="email"
               required
+              aria-invalid={Boolean(error)}
+              aria-describedby={error ? 'setup-error-msg' : undefined}
               value={email}
               onChange={(e) => {
                 setEmail(e.target.value);
@@ -140,6 +147,8 @@ export function SetupForm({ locale }: { locale: string }) {
               type="password"
               autoComplete="new-password"
               required
+              aria-invalid={Boolean(error)}
+              aria-describedby={error ? 'setup-error-msg' : undefined}
               value={password}
               onChange={(e) => {
                 setPassword(e.target.value);

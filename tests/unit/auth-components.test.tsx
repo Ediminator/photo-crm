@@ -55,7 +55,7 @@ vi.mock('@/server/auth/actions', () => ({
 }));
 
 import { SetupForm } from '@/components/auth/setup-form';
-import { SignInForm } from '@/components/auth/sign-in-form';
+import { SignInForm, sanitizeCallbackUrl } from '@/components/auth/sign-in-form';
 import { ForgotPasswordForm } from '@/components/auth/forgot-password-form';
 import { ResetPasswordForm } from '@/components/auth/reset-password-form';
 import { VerifyEmailView } from '@/components/auth/verify-email-view';
@@ -195,6 +195,11 @@ describe('Auth Client Components and Form Submissions', () => {
       expect(html).toContain('data-testid="setup-error"');
       expect(html).toContain('Setup token invalid');
       expect(html).toContain('translated-submitting');
+      // I1-U01 & I1-U02
+      expect(html).toContain('text-red-950');
+      expect(html).toContain('id="setup-error-msg"');
+      expect(html).toContain('aria-invalid="true"');
+      expect(html).toContain('aria-describedby="setup-error-msg"');
     });
   });
 
@@ -266,6 +271,50 @@ describe('Auth Client Components and Form Submissions', () => {
       expect(html).toContain('data-testid="signin-error"');
       expect(html).toContain('Invalid email or password');
       expect(html).toContain('translated-submitting');
+      // I1-U01: High contrast classes
+      expect(html).toContain('text-red-950');
+      expect(html).toContain('bg-red-100');
+      // I1-U02: Error linkage with aria-invalid and aria-describedby
+      expect(html).toContain('id="signin-error-msg"');
+      expect(html).toContain('aria-invalid="true"');
+      expect(html).toContain('aria-describedby="signin-error-msg"');
+    });
+
+    it('I1-S03: sanitizeCallbackUrl rejects open redirects and external schemes', () => {
+      expect(sanitizeCallbackUrl('https://evil.com', 'en')).toBe('/en');
+      expect(sanitizeCallbackUrl('http://attacker.com/steal', 'de')).toBe('/de');
+      expect(sanitizeCallbackUrl('//malicious.com', 'en')).toBe('/en');
+      expect(sanitizeCallbackUrl('javascript:alert(1)', 'en')).toBe('/en');
+      expect(sanitizeCallbackUrl('/\\evil.com', 'en')).toBe('/en');
+      expect(sanitizeCallbackUrl(null, 'en')).toBe('/en');
+      expect(sanitizeCallbackUrl(undefined, 'de')).toBe('/de');
+      expect(sanitizeCallbackUrl('', 'en')).toBe('/en');
+
+      // Valid relative paths must be accepted
+      expect(sanitizeCallbackUrl('/en/dashboard', 'en')).toBe('/en/dashboard');
+      expect(sanitizeCallbackUrl('/de/settings', 'de')).toBe('/de/settings');
+    });
+
+    it('I1-S03: SignInForm sanitizes open redirect callbackUrl upon successful sign-in', async () => {
+      mockSearchParams = new URLSearchParams('callbackUrl=https://attacker.com/phish');
+      mockSignInAction.mockResolvedValueOnce({
+        success: true,
+        data: { user: { id: 'u1', email: 'owner@example.com', name: 'Owner' } },
+      });
+
+      let formProps: FormProps | undefined;
+      function Wrapper() {
+        const tree = SignInForm({ locale: 'en' });
+        formProps = findFormProps(tree);
+        return <div>{tree}</div>;
+      }
+
+      renderToStaticMarkup(<Wrapper />);
+      await formProps?.onSubmit({ preventDefault: () => undefined });
+      expect(mockSignInAction).toHaveBeenCalled();
+      // Must NOT redirect to https://attacker.com
+      expect(mockPush).toHaveBeenCalledWith('/en');
+      mockSearchParams = new URLSearchParams();
     });
   });
 
@@ -342,6 +391,11 @@ describe('Auth Client Components and Form Submissions', () => {
       expect(htmlError).toContain('data-testid="forgot-password-error"');
       expect(htmlError).toContain('Rate limit reached');
       expect(htmlError).toContain('translated-submitting');
+      // I1-U01 & I1-U02
+      expect(htmlError).toContain('text-red-950');
+      expect(htmlError).toContain('id="forgot-password-error-msg"');
+      expect(htmlError).toContain('aria-invalid="true"');
+      expect(htmlError).toContain('aria-describedby="forgot-password-error-msg"');
     });
   });
 
@@ -412,6 +466,11 @@ describe('Auth Client Components and Form Submissions', () => {
       expect(htmlError).toContain('data-testid="reset-password-error"');
       expect(htmlError).toContain('Tokens do not match');
       expect(htmlError).toContain('translated-submitting');
+      // I1-U01 & I1-U02
+      expect(htmlError).toContain('text-red-950');
+      expect(htmlError).toContain('id="reset-password-error-msg"');
+      expect(htmlError).toContain('aria-invalid="true"');
+      expect(htmlError).toContain('aria-describedby="reset-password-error-msg"');
 
       mockStateQueue = ['', '', true, null];
       mockIsPending = false;

@@ -8,7 +8,21 @@ import {
   recordSignInFailure,
   recordSignInSuccess,
   ACCOUNT_MAX_ATTEMPTS,
+  checkSetupRateLimit,
+  recordSetupFailure,
+  SETUP_IP_MAX_ATTEMPTS,
+  checkPasswordResetRequestRateLimit,
+  recordPasswordResetRequest,
+  RESET_REQ_ACCOUNT_MAX_ATTEMPTS,
+  RESET_REQ_IP_MAX_ATTEMPTS,
+  checkPasswordResetActionRateLimit,
+  recordPasswordResetActionFailure,
+  RESET_EXEC_ACCOUNT_MAX_ATTEMPTS,
+  RESET_EXEC_IP_MAX_ATTEMPTS,
+  cleanupExpiredRateLimits,
+  anonymizeIp,
 } from '@/server/auth/rate-limiter';
+import { rateLimits } from '@/server/db/schema/auth';
 import type { DbClient } from '@/server/db/client';
 
 describe('AC-5: Database-backed rate limiting surviving restarts', () => {
@@ -103,5 +117,154 @@ describe('AC-5: Database-backed rate limiting surviving restarts', () => {
     const checkAfterRestart = await checkSignInRateLimit(targetAccount, testIp, restartedDbClient);
     expect(checkAfterRestart.allowed).toBe(false);
     expect(checkAfterRestart.reason).toBe('account');
+  });
+
+  it('AC-5 / I1-S04: throttles studio setup bootstrap after SETUP_IP_MAX_ATTEMPTS (10 attempts)', async () => {
+    const testIp = '198.51.100.25';
+    const dbClient = testDb.db as unknown as DbClient;
+
+    const initial = await checkSetupRateLimit(testIp, dbClient);
+    expect(initial.allowed).toBe(true);
+    expect(initial.remaining).toBe(SETUP_IP_MAX_ATTEMPTS);
+
+    // Record 10 failed attempts
+    for (let i = 0; i < SETUP_IP_MAX_ATTEMPTS; i++) {
+      await recordSetupFailure(testIp, dbClient);
+    }
+
+    const throttled = await checkSetupRateLimit(testIp, dbClient);
+    expect(throttled.allowed).toBe(false);
+    expect(throttled.remaining).toBe(0);
+
+    // Different IP in another subnet should still be allowed
+    const freshIp = '203.0.113.10';
+    const freshCheck = await checkSetupRateLimit(freshIp, dbClient);
+    expect(freshCheck.allowed).toBe(true);
+  });
+
+  it('AC-5 / I1-S04: throttles password reset requests per account and per IP', async () => {
+    const targetEmail = 'victim-reset@example.com';
+    const dbClient = testDb.db as unknown as DbClient;
+
+    // Record requests up to limit from rotating subnets
+    for (let i = 1; i <= RESET_REQ_ACCOUNT_MAX_ATTEMPTS; i++) {
+      const ip = `10.${String(i)}.0.1`;
+      await recordPasswordResetRequest(targetEmail, ip, dbClient);
+    }
+
+    // Next request for target email must be throttled due to account limit
+    const acctCheck = await checkPasswordResetRequestRateLimit(targetEmail, '172.16.0.1', dbClient);
+    expect(acctCheck.allowed).toBe(false);
+    expect(acctCheck.reason).toBe('account');
+
+    // Test IP throttle across different accounts
+    const attackerIp = '198.51.100.88';
+    for (let i = 1; i <= RESET_REQ_IP_MAX_ATTEMPTS; i++) {
+      await recordPasswordResetRequest(`acct-${String(i)}@example.com`, attackerIp, dbClient);
+    }
+
+    const ipCheck = await checkPasswordResetRequestRateLimit(
+      'new-target@example.com',
+      attackerIp,
+      dbClient,
+    );
+    expect(ipCheck.allowed).toBe(false);
+    expect(ipCheck.reason).toBe('ip');
+  });
+
+  it('AC-5 / I1-S04: throttles password reset execution per account and per IP', async () => {
+    const targetEmail = 'victim-exec@example.com';
+    const dbClient = testDb.db as unknown as DbClient;
+
+    for (let i = 1; i <= RESET_EXEC_ACCOUNT_MAX_ATTEMPTS; i++) {
+      const ip = `10.${String(i)}.0.1`;
+      await recordPasswordResetActionFailure(targetEmail, ip, dbClient);
+    }
+
+    const acctCheck = await checkPasswordResetActionRateLimit(targetEmail, '172.16.0.1', dbClient);
+    expect(acctCheck.allowed).toBe(false);
+    expect(acctCheck.reason).toBe('account');
+
+    const attackerIp = '198.51.100.99';
+    for (let i = 1; i <= RESET_EXEC_IP_MAX_ATTEMPTS; i++) {
+      await recordPasswordResetActionFailure(`exec-${String(i)}@example.com`, attackerIp, dbClient);
+    }
+
+    const ipCheck = await checkPasswordResetActionRateLimit(
+      'brand-new-exec@example.com',
+      attackerIp,
+      dbClient,
+    );
+    expect(ipCheck.allowed).toBe(false);
+    expect(ipCheck.reason).toBe('ip');
+  });
+
+  it('AC-5 / I1-S05: stores anonymised /24 IPv4, /48 IPv6, and hashed account identifiers without raw PII', async () => {
+    const dbClient = testDb.db as unknown as DbClient;
+    const rawEmail = 'photographer.personal@example.com';
+    const rawIpv4 = '198.51.100.42';
+    const rawIpv6 = '2001:0db8:85a3:0000:0000:8a2e:0370:7334';
+
+    // Unit checks for anonymizeIp
+    expect(anonymizeIp(rawIpv4)).toBe('198.51.100.0');
+    expect(anonymizeIp('  10.20.30.40  ')).toBe('10.20.30.0');
+    expect(anonymizeIp(rawIpv6)).toContain('::/48');
+
+    // Record sign-in failure with raw values
+    await recordSignInFailure(rawEmail, rawIpv4, dbClient);
+
+    // Query database directly to inspect stored keys
+    const rows = await dbClient.select().from(rateLimits);
+    expect(rows.length).toBeGreaterThanOrEqual(2);
+
+    for (const row of rows) {
+      // Must not contain raw email or @ symbol
+      expect(row.key).not.toContain(rawEmail);
+      expect(row.key).not.toContain('@example.com');
+      // Must not contain host octet (.42) of the IP
+      expect(row.key).not.toContain('198.51.100.42');
+    }
+
+    // Account key must be hashed with sha256 prefix
+    const accountRow = rows.find((r) => r.key.startsWith('account:'));
+    expect(accountRow).toBeDefined();
+    expect(accountRow?.key).toMatch(/^account:[a-f0-9]{32}$/);
+
+    // IP key must end in .0
+    const ipRow = rows.find((r) => r.key.startsWith('ip:'));
+    expect(ipRow).toBeDefined();
+    expect(ipRow?.key).toBe('ip:198.51.100.0');
+  });
+
+  it('AC-5 / I1-S05: cleanupExpiredRateLimits purges expired records while retaining active windows', async () => {
+    const dbClient = testDb.db as unknown as DbClient;
+    const now = Date.now();
+
+    // Insert expired record (expired 1 hour ago)
+    await dbClient.insert(rateLimits).values({
+      key: 'ip:expired.0.0.0',
+      count: 5,
+      lastAttemptAt: new Date(now - 7200000),
+      expiresAt: new Date(now - 3600000),
+    });
+
+    // Insert active record (expires in 15 minutes)
+    await dbClient.insert(rateLimits).values({
+      key: 'ip:active.0.0.0',
+      count: 2,
+      lastAttemptAt: new Date(now),
+      expiresAt: new Date(now + 900000),
+    });
+
+    // Run cleanup
+    const cleaned = await cleanupExpiredRateLimits(dbClient);
+    expect(cleaned).toBe(1);
+
+    const remainingRows = await dbClient.select().from(rateLimits);
+    const expiredRow = remainingRows.find((r) => r.key === 'ip:expired.0.0.0');
+    const activeRow = remainingRows.find((r) => r.key === 'ip:active.0.0.0');
+
+    expect(expiredRow).toBeUndefined();
+    expect(activeRow).toBeDefined();
   });
 });

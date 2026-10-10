@@ -5,8 +5,19 @@ import { cookies, headers } from 'next/headers';
 import { eq } from 'drizzle-orm';
 import { db, type DbClient } from '@/server/db/client';
 import { user, account } from '@/server/db/schema/auth';
-import { verifyPasswordArgon2id } from './passwords/policy';
-import { checkSignInRateLimit, recordSignInFailure, recordSignInSuccess } from './rate-limiter';
+import { verifyPasswordArgon2id, validatePasswordPolicy } from './passwords/policy';
+import {
+  checkSignInRateLimit,
+  recordSignInFailure,
+  recordSignInSuccess,
+  anonymizeIp,
+  checkSetupRateLimit,
+  recordSetupFailure,
+  checkPasswordResetRequestRateLimit,
+  recordPasswordResetRequest,
+  checkPasswordResetActionRateLimit,
+  recordPasswordResetActionFailure,
+} from './rate-limiter';
 import {
   rotateSession,
   revokeSession,
@@ -29,12 +40,15 @@ export type ActionResult<T = unknown> =
 async function getClientIp(): Promise<string> {
   try {
     const h = await headers();
+    const realIp = h.get('x-real-ip');
+    if (realIp) return realIp.trim();
+
     const forwarded = h.get('x-forwarded-for');
     if (forwarded) {
       const firstIp = forwarded.split(',')[0];
       if (firstIp) return firstIp.trim();
     }
-    return h.get('x-real-ip') ?? '127.0.0.1';
+    return '127.0.0.1';
   } catch {
     return '127.0.0.1';
   }
@@ -77,9 +91,22 @@ export async function setupOwnerAction(
   },
   client: DbClient = db,
 ): Promise<ActionResult<{ user: { id: string; email: string; name: string } }>> {
+  const ip = await getClientIp();
+
   try {
+    // Rate limiting on setup (I1-S04)
+    const rateLimitStatus = await checkSetupRateLimit(ip, client);
+    if (!rateLimitStatus.allowed) {
+      return {
+        success: false,
+        error: 'Too many setup attempts. Please try again later.',
+      };
+    }
+
     const owner = await setupOwner({ ...formData, client });
-    const session = await rotateSession(null, owner.id, client);
+    const session = await rotateSession(null, owner.id, client, {
+      ipAddress: anonymizeIp(ip), // I1-S05
+    });
     await setSessionCookie(session.token);
 
     return {
@@ -93,6 +120,11 @@ export async function setupOwnerAction(
       },
     };
   } catch (err) {
+    try {
+      await recordSetupFailure(ip, client);
+    } catch {
+      // Ignore database connection errors during failure recording
+    }
     return {
       success: false,
       error: err instanceof Error ? err.message : 'Setup failed.',
@@ -185,7 +217,7 @@ export async function signInAction(
   }
 
   const newSession = await rotateSession(oldToken, existingUser.id, client, {
-    ipAddress: ip,
+    ipAddress: anonymizeIp(ip),
   });
   await setSessionCookie(newSession.token);
 
@@ -245,16 +277,39 @@ export async function requestPasswordResetAction(
     transporter?: import('nodemailer').Transporter;
   } = {},
 ): Promise<ActionResult<{ message: string }>> {
+  // 1. Fast format validation
+  const email = formData.email.trim();
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!email || !emailRegex.test(email)) {
+    return {
+      success: false,
+      error: 'Invalid email address.',
+    };
+  }
+
   try {
+    const client = options.client ?? db;
+    const ip = await getClientIp();
+
+    // 2. Rate limiting for password reset requests (I1-S04)
+    const rateLimitStatus = await checkPasswordResetRequestRateLimit(email, ip, client);
+    if (!rateLimitStatus.allowed) {
+      return {
+        success: false,
+        error: 'Too many password reset requests. Please try again later.',
+      };
+    }
+    await recordPasswordResetRequest(email, ip, client);
+
     let baseUrl = 'http://localhost:3000';
     try {
       baseUrl = env.AUTH_URL;
     } catch {
       baseUrl = process.env.AUTH_URL ?? baseUrl;
     }
-    const result = await requestPasswordReset(formData.email, {
+    const result = await requestPasswordReset(email, {
       baseUrl: options.baseUrl ?? baseUrl,
-      client: options.client ?? db,
+      client,
       transporter: options.transporter,
     });
     return {
@@ -280,10 +335,36 @@ export async function resetPasswordAction(
   },
   client: DbClient = db,
 ): Promise<ActionResult> {
+  // 1. Validate password policy first before DB access
+  const policy = validatePasswordPolicy(formData.newPassword);
+  if (!policy.valid) {
+    return {
+      success: false,
+      error: policy.message ?? 'Invalid password',
+    };
+  }
+
   try {
+    const ip = await getClientIp();
+
+    // 2. Rate limiting for reset action (I1-S04)
+    const rateLimitStatus = await checkPasswordResetActionRateLimit(formData.email, ip, client);
+    if (!rateLimitStatus.allowed) {
+      return {
+        success: false,
+        error: 'Too many password reset attempts. Please try again later.',
+      };
+    }
+
     await resetPassword({ ...formData, client });
     return { success: true };
   } catch (err) {
+    try {
+      const ip = await getClientIp();
+      await recordPasswordResetActionFailure(formData.email, ip, client);
+    } catch {
+      // Ignore database connection errors during failure recording
+    }
     return {
       success: false,
       error: err instanceof Error ? err.message : 'Password reset failed.',

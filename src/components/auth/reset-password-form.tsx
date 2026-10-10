@@ -73,10 +73,11 @@ export function ResetPasswordForm({ locale }: { locale: string }) {
           >
             {error && (
               <div
+                id="reset-password-error-msg"
                 role="alert"
                 aria-live="polite"
                 data-testid="reset-password-error"
-                className="p-3 text-sm text-destructive bg-destructive/10 border border-destructive/20 rounded-md"
+                className="p-3 text-sm font-medium rounded-md border text-red-950 bg-red-100 border-red-300 dark:text-red-100 dark:bg-red-950 dark:border-red-800"
               >
                 {error}
               </div>
@@ -96,6 +97,8 @@ export function ResetPasswordForm({ locale }: { locale: string }) {
                 type="password"
                 autoComplete="new-password"
                 required
+                aria-invalid={Boolean(error)}
+                aria-describedby={error ? 'reset-password-error-msg' : undefined}
                 value={newPassword}
                 onChange={(e) => {
                   setNewPassword(e.target.value);
@@ -119,6 +122,8 @@ export function ResetPasswordForm({ locale }: { locale: string }) {
                 type="password"
                 autoComplete="new-password"
                 required
+                aria-invalid={Boolean(error)}
+                aria-describedby={error ? 'reset-password-error-msg' : undefined}
                 value={confirmPassword}
                 onChange={(e) => {
                   setConfirmPassword(e.target.value);

@@ -3,11 +3,27 @@ import { SkipLink } from './skip-link';
 import { Sidebar } from './sidebar';
 import { MobileNav } from './mobile-nav';
 
-interface AppShellProps {
+export interface AppShellProps {
   children: React.ReactNode;
+  isAuthRoute?: boolean;
 }
 
-export function AppShell({ children }: AppShellProps) {
+export function AppShell({ children, isAuthRoute = false }: AppShellProps) {
+  if (isAuthRoute) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-background text-foreground antialiased font-sans p-4">
+        <SkipLink />
+        <main
+          id="main-content"
+          tabIndex={-1}
+          className="w-full flex items-center justify-center outline-none"
+        >
+          {children}
+        </main>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen flex flex-col lg:flex-row bg-background text-foreground antialiased font-sans">
       <SkipLink />

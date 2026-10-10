@@ -10,12 +10,15 @@ import {
 } from './passwords/policy';
 import { generateUuidV7 } from '@/lib/id';
 
+export const DEFAULT_PLACEHOLDER_SECRET =
+  '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
+
 /**
  * Factory function creating a Better-Auth instance.
  * Allows passing an isolated test database client for integration testing.
  */
 export function createAuthInstance(client: DbClient = defaultDb) {
-  let secret = '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
+  let secret = DEFAULT_PLACEHOLDER_SECRET;
   let baseURL = 'http://localhost:3000';
   let isProd = false;
 
@@ -27,6 +30,10 @@ export function createAuthInstance(client: DbClient = defaultDb) {
     secret = process.env.AUTH_SECRET ?? secret;
     baseURL = process.env.AUTH_URL ?? baseURL;
     isProd = process.env.NODE_ENV === 'production';
+  }
+
+  if (isProd && (!secret || secret === DEFAULT_PLACEHOLDER_SECRET || secret.length < 32)) {
+    throw new Error('AUTH_SECRET is required and must be at least 32 characters in production.');
   }
 
   return betterAuth({
@@ -51,6 +58,7 @@ export function createAuthInstance(client: DbClient = defaultDb) {
     },
     emailAndPassword: {
       enabled: true,
+      disableSignUp: true,
       minPasswordLength: 12,
       maxPasswordLength: 1024,
       password: {

@@ -6,11 +6,25 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { signInAction } from '@/server/auth/actions';
 
+export function sanitizeCallbackUrl(raw: string | null | undefined, locale: string): string {
+  if (!raw) return `/${locale}`;
+  const trimmed = raw.trim();
+  if (
+    trimmed.startsWith('/') &&
+    !trimmed.startsWith('//') &&
+    !trimmed.includes('://') &&
+    !trimmed.includes('\\')
+  ) {
+    return trimmed;
+  }
+  return `/${locale}`;
+}
+
 export function SignInForm({ locale }: { locale: string }) {
   const t = useTranslations('auth.signIn');
   const router = useRouter();
   const searchParams = useSearchParams();
-  const callbackUrl = searchParams.get('callbackUrl') ?? `/${locale}`;
+  const callbackUrl = sanitizeCallbackUrl(searchParams.get('callbackUrl'), locale);
 
   const [isPending, startTransition] = useTransition();
   const [email, setEmail] = useState('');
@@ -43,10 +57,11 @@ export function SignInForm({ locale }: { locale: string }) {
         <form onSubmit={handleSubmit} data-testid="signin-form" className="space-y-4" noValidate>
           {error && (
             <div
+              id="signin-error-msg"
               role="alert"
               aria-live="polite"
               data-testid="signin-error"
-              className="p-3 text-sm text-destructive bg-destructive/10 border border-destructive/20 rounded-md"
+              className="p-3 text-sm font-medium rounded-md border text-red-950 bg-red-100 border-red-300 dark:text-red-100 dark:bg-red-950 dark:border-red-800"
             >
               {error}
             </div>
@@ -66,6 +81,8 @@ export function SignInForm({ locale }: { locale: string }) {
               type="email"
               autoComplete="email"
               required
+              aria-invalid={Boolean(error)}
+              aria-describedby={error ? 'signin-error-msg' : undefined}
               value={email}
               onChange={(e) => {
                 setEmail(e.target.value);
@@ -97,6 +114,8 @@ export function SignInForm({ locale }: { locale: string }) {
               type="password"
               autoComplete="current-password"
               required
+              aria-invalid={Boolean(error)}
+              aria-describedby={error ? 'signin-error-msg' : undefined}
               value={password}
               onChange={(e) => {
                 setPassword(e.target.value);
