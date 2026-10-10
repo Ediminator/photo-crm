@@ -15,7 +15,7 @@ import { faker } from '@faker-js/faker';
 import postgres from 'postgres';
 import { drizzle } from 'drizzle-orm/postgres-js';
 import { eq } from 'drizzle-orm';
-import { pgTable, uuid, varchar, timestamp } from 'drizzle-orm/pg-core';
+import { pgTable, uuid, varchar, char, boolean, timestamp } from 'drizzle-orm/pg-core';
 
 export const SAFE_EMAIL_DOMAINS = ['example.com', 'example.org'];
 export const DEFAULT_SEED = 42;
@@ -28,6 +28,43 @@ export const studioSettings = pgTable('studio_settings', {
   currency: varchar('currency', { length: 3 }).notNull().default('EUR'),
   created_at: timestamp('created_at', { withTimezone: true, mode: 'date' }).notNull().defaultNow(),
   updated_at: timestamp('updated_at', { withTimezone: true, mode: 'date' }).notNull().defaultNow(),
+});
+
+export const clientsTable = pgTable('clients', {
+  id: uuid('id').primaryKey(),
+  kind: varchar('kind', { length: 20 }).notNull(),
+  displayName: varchar('display_name', { length: 200 }).notNull(),
+  preferredLocale: varchar('preferred_locale', { length: 10 }).notNull(),
+  lastActivityAt: timestamp('last_activity_at', { withTimezone: true, mode: 'date' }).notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' }).notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true, mode: 'date' }).notNull(),
+});
+
+export const clientContactsTable = pgTable('client_contacts', {
+  id: uuid('id').primaryKey(),
+  clientId: uuid('client_id').notNull(),
+  givenName: varchar('given_name', { length: 100 }),
+  familyName: varchar('family_name', { length: 100 }),
+  email: varchar('email', { length: 254 }),
+  emailNormalized: varchar('email_normalized', { length: 254 }),
+  phone: varchar('phone', { length: 32 }),
+  isPrimary: boolean('is_primary').notNull().default(false),
+  createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' }).notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true, mode: 'date' }).notNull(),
+});
+
+export const clientAddressesTable = pgTable('client_addresses', {
+  id: uuid('id').primaryKey(),
+  clientId: uuid('client_id').notNull(),
+  type: varchar('type', { length: 20 }).notNull(),
+  line1: varchar('line1', { length: 200 }).notNull(),
+  line2: varchar('line2', { length: 200 }),
+  postalCode: varchar('postal_code', { length: 20 }).notNull(),
+  city: varchar('city', { length: 100 }).notNull(),
+  region: varchar('region', { length: 100 }),
+  countryCode: char('country_code', { length: 2 }).notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' }).notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true, mode: 'date' }).notNull(),
 });
 
 /**
@@ -106,9 +143,86 @@ export function generateDemoData(seed = DEFAULT_SEED) {
     };
   });
 
+  // Generate 50 deterministic synthetic clients (TASK-0009, AC-17)
+  let phoneCounter = 1;
+  const clients = Array.from({ length: 50 }, (_, i) => {
+    const clientTimestampMs = baseTimestampMs + (i + 10) * 3600000;
+    const clientId = generateDeterministicUuidV7(faker, clientTimestampMs);
+    const isCompany = i % 3 === 0;
+    const kind = isCompany ? 'company' : 'person';
+    const companyName = `${faker.company.name()} GmbH`.slice(0, 200);
+    const personName = `${faker.person.firstName()} ${faker.person.lastName()}`.slice(0, 200);
+    const displayName = isCompany ? companyName : personName;
+    const preferredLocale = i % 2 === 0 ? 'de' : 'en';
+
+    // 1 to 3 contacts per client
+    const numContacts = (i % 3) + 1;
+    const clientContactsList = Array.from({ length: numContacts }, (_, cIdx) => {
+      const contactTs = clientTimestampMs + (cIdx + 1) * 60000;
+      const contactId = generateDeterministicUuidV7(faker, contactTs);
+      const givenName = faker.person.firstName();
+      const familyName = faker.person.lastName();
+      const domain = SAFE_EMAIL_DOMAINS[(i + cIdx) % SAFE_EMAIL_DOMAINS.length];
+      const email = `${givenName.toLowerCase()}.${familyName.toLowerCase()}.${i}.${cIdx}@${domain}`;
+      const phone = `+49 30 0000 ${String(phoneCounter++).padStart(4, '0')}`;
+
+      return {
+        id: contactId,
+        clientId,
+        givenName,
+        familyName,
+        email,
+        emailNormalized: email.toLowerCase(),
+        phone,
+        isPrimary: cIdx === 0,
+        createdAt: new Date(contactTs),
+        updatedAt: new Date(contactTs),
+      };
+    });
+
+    // 0 to 2 addresses per client
+    const numAddresses = i % 3;
+    const clientAddressesList = Array.from({ length: numAddresses }, (_, aIdx) => {
+      const addrTs = clientTimestampMs + (aIdx + 1) * 120000;
+      const addressId = generateDeterministicUuidV7(faker, addrTs);
+      const type = aIdx === 0 ? 'postal' : 'billing';
+      const postalCode = String(10115 + (i % 20));
+      const city = 'Berlin';
+      const line1 = `Musterstraße ${i + 1}`;
+      const line2 = aIdx === 1 ? 'Etage 2' : null;
+
+      return {
+        id: addressId,
+        clientId,
+        type,
+        line1,
+        line2,
+        postalCode,
+        city,
+        region: 'Berlin',
+        countryCode: 'DE',
+        createdAt: new Date(addrTs),
+        updatedAt: new Date(addrTs),
+      };
+    });
+
+    return {
+      id: clientId,
+      kind,
+      displayName,
+      preferredLocale,
+      lastActivityAt: new Date(clientTimestampMs),
+      createdAt: new Date(clientTimestampMs),
+      updatedAt: new Date(clientTimestampMs),
+      contacts: clientContactsList,
+      addresses: clientAddressesList,
+    };
+  });
+
   return {
     settings,
     contacts,
+    clients,
   };
 }
 
@@ -144,6 +258,17 @@ export async function seedDemo(options = {}) {
     }
   }
 
+  for (const client of demoData.clients) {
+    for (const contact of client.contacts) {
+      if (!isSafeEmail(contact.email)) {
+        throw new Error(`Unsafe synthetic email domain detected: "${contact.email}"`);
+      }
+      if (!/^\+49 30 0000 \d{4}$/.test(contact.phone)) {
+        throw new Error(`Unsafe synthetic phone number detected: "${contact.phone}"`);
+      }
+    }
+  }
+
   let client = options.dbClient;
   let rawClient = null;
 
@@ -174,6 +299,50 @@ export async function seedDemo(options = {}) {
       await client.insert(studioSettings).values(demoData.settings);
     }
 
+    // Insert clients, contacts, and addresses
+    for (const cl of demoData.clients) {
+      await client.insert(clientsTable).values({
+        id: cl.id,
+        kind: cl.kind,
+        displayName: cl.displayName,
+        preferredLocale: cl.preferredLocale,
+        lastActivityAt: cl.lastActivityAt,
+        createdAt: cl.createdAt,
+        updatedAt: cl.updatedAt,
+      });
+
+      for (const contact of cl.contacts) {
+        await client.insert(clientContactsTable).values({
+          id: contact.id,
+          clientId: contact.clientId,
+          givenName: contact.givenName,
+          familyName: contact.familyName,
+          email: contact.email,
+          emailNormalized: contact.emailNormalized,
+          phone: contact.phone,
+          isPrimary: contact.isPrimary,
+          createdAt: contact.createdAt,
+          updatedAt: contact.updatedAt,
+        });
+      }
+
+      for (const addr of cl.addresses) {
+        await client.insert(clientAddressesTable).values({
+          id: addr.id,
+          clientId: addr.clientId,
+          type: addr.type,
+          line1: addr.line1,
+          line2: addr.line2,
+          postalCode: addr.postalCode,
+          city: addr.city,
+          region: addr.region,
+          countryCode: addr.countryCode,
+          createdAt: addr.createdAt,
+          updatedAt: addr.updatedAt,
+        });
+      }
+    }
+
     return {
       success: true,
       data: demoData,
@@ -196,6 +365,7 @@ if (isCli) {
     console.log('✅ Synthetic demo seed completed successfully:');
     console.log(`  Studio: "${result.data.settings.studio_name}"`);
     console.log(`  Safe synthetic contacts generated: ${result.data.contacts.length}`);
+    console.log(`  Safe synthetic clients generated: ${result.data.clients.length}`);
     process.exit(0);
   } catch (err) {
     console.error('❌ Demo seed failed:', err instanceof Error ? err.message : String(err));

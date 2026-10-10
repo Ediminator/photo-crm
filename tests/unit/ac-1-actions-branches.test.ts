@@ -91,7 +91,7 @@ vi.mock('@/server/auth/session', () => ({
   revokeSession: vi.fn(() => Promise.resolve()),
   signOutEverywhere: vi.fn(() => Promise.resolve()),
   verifySession: vi.fn((token: string) => {
-    if (token === 'valid-token') {
+    if (['valid-token'].includes(token)) {
       return Promise.resolve({
         session: { id: 'sess-uuid-1', userId: 'user-uuid-1' },
         user: { id: 'user-uuid-1', email: 'owner@example.com', name: 'Owner' },

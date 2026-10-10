@@ -11,6 +11,13 @@ export const AGENT_ATTRIBUTION_KEYS = [
   'args_hash',
 ] as const;
 
+export const CLIENT_AUDIT_KEYS = [
+  'changed_fields',
+  'contact_id',
+  'address_type',
+  'duplicate_acknowledged',
+] as const;
+
 export const ACTION_METADATA_ALLOWLIST = new Map<string, readonly string[]>([
   ['auth.setup.completed', ['owner_id', 'setup_method', 'ip_anonymized']],
   ['auth.sign_in.success', ['session_id', 'auth_method', 'ip_anonymized']],
@@ -39,6 +46,13 @@ export const ACTION_METADATA_ALLOWLIST = new Map<string, readonly string[]>([
   ],
   ['agent.tool.invoked', [...AGENT_ATTRIBUTION_KEYS, 'status', 'duration_ms']],
   ['agent.command.executed', [...AGENT_ATTRIBUTION_KEYS, 'exit_code', 'duration_ms']],
+  ['client.created', CLIENT_AUDIT_KEYS],
+  ['client.updated', CLIENT_AUDIT_KEYS],
+  ['client.contact.added', CLIENT_AUDIT_KEYS],
+  ['client.contact.updated', CLIENT_AUDIT_KEYS],
+  ['client.contact.removed', CLIENT_AUDIT_KEYS],
+  ['client.address.upserted', CLIENT_AUDIT_KEYS],
+  ['client.address.removed', CLIENT_AUDIT_KEYS],
 ]);
 
 /**

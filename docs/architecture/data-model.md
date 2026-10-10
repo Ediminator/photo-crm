@@ -88,3 +88,63 @@ The `studio_settings` table stores singleton tenant configuration for the photog
 | `currency`       | `varchar(3)`   | `NOT NULL, DEFAULT 'EUR'` | Studio default ISO 4217 currency code          |
 | `created_at`     | `timestamptz`  | `NOT NULL, DEFAULT now()` | UTC creation timestamp                         |
 | `updated_at`     | `timestamptz`  | `NOT NULL, DEFAULT now()` | UTC last update timestamp                      |
+
+---
+
+## 7. Clients & Contacts Domain (TASK-0009)
+
+The clients domain models natural persons or corporate clients served by the studio, their individual contacts, and postal/billing addresses.
+
+### `clients` Table
+
+| Column             | Type           | Constraints                                          | Description                                     |
+| ------------------ | -------------- | ---------------------------------------------------- | ----------------------------------------------- |
+| `id`               | `uuid`         | `PRIMARY KEY`                                        | UUIDv7 primary key                              |
+| `kind`             | `varchar(20)`  | `NOT NULL, CHECK (kind IN ('person', 'company'))`    | Client type                                     |
+| `display_name`     | `varchar(200)` | `NOT NULL`                                           | Person full name or company name                |
+| `preferred_locale` | `varchar(10)`  | `NOT NULL, CHECK (preferred_locale IN ('en', 'de'))` | Communication locale                            |
+| `last_activity_at` | `timestamptz`  | `NOT NULL, DEFAULT now()`                            | Monotonic activity tracker for retention sweeps |
+| `created_at`       | `timestamptz`  | `NOT NULL, DEFAULT now()`                            | UTC creation timestamp                          |
+| `updated_at`       | `timestamptz`  | `NOT NULL, DEFAULT now()`                            | UTC last update timestamp                       |
+
+### `client_contacts` Table
+
+| Column             | Type           | Constraints                                          | Description                                  |
+| ------------------ | -------------- | ---------------------------------------------------- | -------------------------------------------- |
+| `id`               | `uuid`         | `PRIMARY KEY`                                        | UUIDv7 primary key                           |
+| `client_id`        | `uuid`         | `NOT NULL, REFERENCES clients(id) ON DELETE CASCADE` | Foreign key to owning client                 |
+| `given_name`       | `varchar(100)` | `NULL`                                               | First/given name                             |
+| `family_name`      | `varchar(100)` | `NULL`                                               | Last/family name                             |
+| `email`            | `varchar(254)` | `NULL`                                               | Cleartext contact email                      |
+| `email_normalized` | `varchar(254)` | `NULL, INDEX`                                        | Lowercased & trimmed for duplicate detection |
+| `phone`            | `varchar(32)`  | `NULL`                                               | E.164-compatible phone number                |
+| `is_primary`       | `boolean`      | `NOT NULL, DEFAULT false`                            | Exactly one primary contact per client       |
+| `created_at`       | `timestamptz`  | `NOT NULL, DEFAULT now()`                            | UTC creation timestamp                       |
+| `updated_at`       | `timestamptz`  | `NOT NULL, DEFAULT now()`                            | UTC last update timestamp                    |
+
+Constraints:
+
+- `client_contacts_name_check`: `CHECK ((given_name IS NOT NULL AND length(trim(given_name)) > 0) OR (family_name IS NOT NULL AND length(trim(family_name)) > 0))`
+- `client_contacts_client_id_primary_idx`: `UNIQUE INDEX (client_id) WHERE is_primary = true` (enforces exactly one primary contact per client)
+- Foreign Key: `ON DELETE CASCADE` ensures contacts are removed when their client is erased.
+
+### `client_addresses` Table
+
+| Column         | Type           | Constraints                                          | Description                                |
+| -------------- | -------------- | ---------------------------------------------------- | ------------------------------------------ |
+| `id`           | `uuid`         | `PRIMARY KEY`                                        | UUIDv7 primary key                         |
+| `client_id`    | `uuid`         | `NOT NULL, REFERENCES clients(id) ON DELETE CASCADE` | Foreign key to owning client               |
+| `type`         | `varchar(20)`  | `NOT NULL, CHECK (type IN ('postal', 'billing'))`    | Address purpose                            |
+| `line1`        | `varchar(200)` | `NOT NULL`                                           | Street address and house number            |
+| `line2`        | `varchar(200)` | `NULL`                                               | Suite, apartment, or additional info       |
+| `postal_code`  | `varchar(20)`  | `NOT NULL`                                           | Postal/ZIP code                            |
+| `city`         | `varchar(100)` | `NOT NULL`                                           | Municipality or city                       |
+| `region`       | `varchar(100)` | `NULL`                                               | State, province, or canton                 |
+| `country_code` | `char(2)`      | `NOT NULL`                                           | Two-letter ISO 3166-1 alpha-2 country code |
+| `created_at`   | `timestamptz`  | `NOT NULL, DEFAULT now()`                            | UTC creation timestamp                     |
+| `updated_at`   | `timestamptz`  | `NOT NULL, DEFAULT now()`                            | UTC last update timestamp                  |
+
+Constraints:
+
+- `client_addresses_client_id_type_unique`: `UNIQUE (client_id, type)` (maximum 1 address per type per client)
+- Foreign Key: `ON DELETE CASCADE` ensures addresses are removed when their client is erased.
