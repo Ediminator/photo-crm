@@ -1,0 +1,173 @@
+import { describe, it, expect, vi } from 'vitest';
+import {
+  computeCutoff,
+  defineRetentionPolicy,
+  createDefaultPolicies,
+  registerPolicy,
+  getPolicies,
+  resetPolicies,
+} from '@/server/retention/policy';
+import type { DbClient } from '@/server/db/client';
+
+describe('Retention policy utility and definition branches', () => {
+  it('computeCutoff computes correct date with combinations of months, days, hours, or undefined', () => {
+    const now = new Date('2026-10-10T12:00:00Z');
+
+    // Undefined after
+    const cutoffNoAfter = computeCutoff(now, undefined);
+    expect(cutoffNoAfter.getTime()).toBe(now.getTime());
+
+    // Months
+    const cutoffMonths = computeCutoff(now, { months: 2 });
+    expect(cutoffMonths.getMonth()).toBe(7); // October - 2 = August
+
+    // Days
+    const cutoffDays = computeCutoff(now, { days: 5 });
+    expect(cutoffDays.getDate()).toBe(5);
+
+    // Hours
+    const cutoffHours = computeCutoff(now, { hours: 4 });
+    expect(cutoffHours.getUTCHours()).toBe(8);
+
+    // Combination of all
+    const cutoffCombo = computeCutoff(now, { months: 1, days: 2, hours: 3 });
+    expect(cutoffCombo < now).toBe(true);
+  });
+
+  it('defineRetentionPolicy handles default getCandidates with where clause and without where clause', async () => {
+    // 1. With where clause
+    const mockEntities = [
+      { id: '1', name: 'a' },
+      { id: '2', name: 'b' },
+      { id: '3', name: 'c' },
+    ];
+    const policyWithWhere = defineRetentionPolicy({
+      id: 'test-where-policy',
+      entity: 'test_entity',
+      action: 'delete',
+      where: () => Promise.resolve(mockEntities),
+    });
+
+    const candidates = await policyWithWhere.getCandidates(
+      {} as DbClient,
+      new Date(),
+      2,
+      ['2'], // Exclude id '2'
+    );
+    expect(candidates).toEqual([
+      { id: '1', name: 'a' },
+      { id: '3', name: 'c' },
+    ]);
+
+    // 2. Without where clause
+    const policyWithoutWhere = defineRetentionPolicy({
+      id: 'test-no-where-policy',
+      entity: 'test_entity',
+      action: 'delete',
+    });
+
+    const candidatesNoWhere = await policyWithoutWhere.getCandidates(
+      {} as DbClient,
+      new Date(),
+      10,
+      [],
+    );
+    expect(candidatesNoWhere).toEqual([]);
+
+    // 3. Default deleteBatch no-op
+    await expect(policyWithoutWhere.deleteBatch({} as DbClient, ['1'])).resolves.toBeUndefined();
+  });
+
+  it('createDefaultPolicies constructs policies that exercise getCandidates and deleteBatch branches', async () => {
+    const policies = createDefaultPolicies();
+    expect(policies).toHaveLength(3);
+
+    const [auditPolicy, sessionPolicy, rateLimitPolicy] = policies;
+    expect(auditPolicy).toBeDefined();
+    expect(sessionPolicy).toBeDefined();
+    expect(rateLimitPolicy).toBeDefined();
+
+    // Mock DB client
+    let deletedCount = 0;
+    const mockClient = {
+      select: () => ({
+        from: () => ({
+          where: () => ({
+            limit: (lim: number) => Promise.resolve([{ id: 'row-1' }].slice(0, lim)),
+          }),
+        }),
+      }),
+      delete: () => ({
+        where: vi.fn(() => {
+          deletedCount++;
+          return Promise.resolve();
+        }),
+      }),
+    } as unknown as DbClient;
+
+    const now = new Date();
+
+    if (auditPolicy) {
+      // getCandidates with excludedIds and without
+      const c1 = await auditPolicy.getCandidates(mockClient, now, 10, ['ex-1']);
+      expect(c1).toHaveLength(1);
+      const c2 = await auditPolicy.getCandidates(mockClient, now, 10, []);
+      expect(c2).toHaveLength(1);
+
+      // deleteBatch with ids and without
+      await auditPolicy.deleteBatch(mockClient, []);
+      expect(deletedCount).toBe(0);
+      await auditPolicy.deleteBatch(mockClient, ['row-1']);
+      expect(deletedCount).toBe(1);
+    }
+
+    if (sessionPolicy) {
+      // getCandidates with excludedIds and without
+      const c1 = await sessionPolicy.getCandidates(mockClient, now, 10, ['ex-1']);
+      expect(c1).toHaveLength(1);
+      const c2 = await sessionPolicy.getCandidates(mockClient, now, 10, []);
+      expect(c2).toHaveLength(1);
+
+      // deleteBatch with ids and without
+      await sessionPolicy.deleteBatch(mockClient, []);
+      await sessionPolicy.deleteBatch(mockClient, ['row-1']);
+      expect(deletedCount).toBe(2);
+    }
+
+    if (rateLimitPolicy) {
+      // getCandidates with excludedIds and without
+      const c1 = await rateLimitPolicy.getCandidates(mockClient, now, 10, ['ex-1']);
+      expect(c1).toHaveLength(1);
+      const c2 = await rateLimitPolicy.getCandidates(mockClient, now, 10, []);
+      expect(c2).toHaveLength(1);
+
+      // deleteBatch with ids and without
+      await rateLimitPolicy.deleteBatch(mockClient, []);
+      await rateLimitPolicy.deleteBatch(mockClient, ['row-1']);
+      expect(deletedCount).toBe(3);
+    }
+  });
+
+  it('manages policy registry via registerPolicy, getPolicies, and resetPolicies', () => {
+    // resetPolicies clears and initializes default policies
+    resetPolicies();
+    const initialPolicies = getPolicies();
+    expect(initialPolicies.length).toBeGreaterThanOrEqual(3);
+
+    // Register a custom policy
+    const customPolicy = defineRetentionPolicy({
+      id: 'custom-test-policy',
+      entity: 'custom_entity',
+      action: 'delete',
+    });
+    registerPolicy(customPolicy);
+
+    const updatedPolicies = getPolicies();
+    expect(updatedPolicies.some((p) => p.id === 'custom-test-policy')).toBe(true);
+
+    // Reset again
+    resetPolicies();
+    const finalPolicies = getPolicies();
+    expect(finalPolicies.some((p) => p.id === 'custom-test-policy')).toBe(false);
+  });
+});

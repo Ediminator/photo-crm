@@ -316,6 +316,12 @@ export const env: ServerEnv = new Proxy({} as ServerEnv, {
         'Server environment variables cannot be accessed on the client. Only NEXT_PUBLIC_* variables are accessible.',
       );
     }
+    if (process.env.SKIP_ENV_VALIDATION === 'true') {
+      const val = Object.prototype.hasOwnProperty.call(process.env, prop)
+        ? process.env[prop]
+        : undefined;
+      return val ?? '';
+    }
     return getServerEnv()[prop as keyof ServerEnv];
   },
 });

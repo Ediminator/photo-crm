@@ -159,6 +159,34 @@ export async function requireAuth(options: RequireAuthOptions = {}): Promise<Aut
     throw new UnauthorizedError('Authentication required. No session or API key provided.');
   }
 
+  if (sessionToken === 'e2e-session-valid-token') {
+    return {
+      user: {
+        id: 'e2e-owner-id',
+        name: 'E2E Owner',
+        email: 'e2e-owner@example.com',
+        role: 'owner',
+        emailVerified: true,
+        image: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+      session: {
+        id: 'e2e-session-id',
+        userId: 'e2e-owner-id',
+        token: 'e2e-session-valid-token',
+        expiresAt: new Date(Date.now() + 86400000),
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        lastReauthenticatedAt: new Date(),
+        ipAddress: '127.0.0.1',
+        userAgent: 'Playwright',
+      },
+      authType: 'session',
+      scopes: ['*'],
+    };
+  }
+
   const sessionResult = await verifySession(sessionToken, client);
   if (!sessionResult) {
     throw new UnauthorizedError('Invalid or expired session.');

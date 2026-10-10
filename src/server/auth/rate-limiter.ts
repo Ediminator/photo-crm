@@ -23,6 +23,11 @@ export const RESET_EXEC_ACCOUNT_MAX_ATTEMPTS = 10;
 export const RESET_EXEC_IP_MAX_ATTEMPTS = 15;
 export const RESET_EXEC_WINDOW_MS = 15 * 60 * 1000;
 
+// Rate limit thresholds for Multi-Factor Authentication (TASK-0008 / AC-4)
+export const MFA_MAX_ATTEMPTS = 5;
+export const MFA_IP_MAX_ATTEMPTS = 25;
+export const MFA_WINDOW_MS = 15 * 60 * 1000; // 15 minutes
+
 export interface RateLimitCheckResult {
   allowed: boolean;
   remaining: number;
@@ -383,4 +388,75 @@ export async function recordPasswordResetActionFailure(
     recordFailedAttempt(ipKey, RESET_EXEC_WINDOW_MS, client),
     recordFailedAttempt(acctKey, RESET_EXEC_WINDOW_MS, client),
   ]);
+}
+
+/**
+ * Derives a hashed key for an MFA verification target to prevent persisting raw identifiers.
+ */
+export function getMfaAccountKey(identifier: string): string {
+  const normalized = identifier.toLowerCase().trim();
+  const hash = crypto.createHash('sha256').update(normalized).digest('hex').slice(0, 32);
+  return `mfa_acct:${hash}`;
+}
+
+/**
+ * Derives an anonymised key for an MFA verification request IP.
+ */
+export function getMfaIpKey(ip: string): string {
+  return `mfa_ip:${anonymizeIp(ip)}`;
+}
+
+/**
+ * Checks both IP and Account limits before processing an MFA verification attempt (TASK-0008 / AC-4).
+ * Throttles when > 5 failed attempts occur in 15 minutes.
+ */
+export async function checkMfaRateLimit(
+  identifier: string,
+  ip: string,
+  client: DbClient = defaultDb,
+): Promise<RateLimitCheckResult> {
+  const ipKey = getMfaIpKey(ip);
+  const ipCheck = await checkRateLimit(ipKey, MFA_IP_MAX_ATTEMPTS, MFA_WINDOW_MS, client);
+  if (!ipCheck.allowed) {
+    return { ...ipCheck, reason: 'ip' };
+  }
+
+  const acctKey = getMfaAccountKey(identifier);
+  const acctCheck = await checkRateLimit(acctKey, MFA_MAX_ATTEMPTS, MFA_WINDOW_MS, client);
+  if (!acctCheck.allowed) {
+    return { ...acctCheck, reason: 'account' };
+  }
+
+  return {
+    allowed: true,
+    remaining: Math.min(ipCheck.remaining, acctCheck.remaining),
+    resetAt: new Date(Math.max(ipCheck.resetAt.getTime(), acctCheck.resetAt.getTime())),
+  };
+}
+
+/**
+ * Records a failed MFA verification attempt against both account and IP.
+ */
+export async function recordMfaFailure(
+  identifier: string,
+  ip: string,
+  client: DbClient = defaultDb,
+): Promise<void> {
+  const ipKey = getMfaIpKey(ip);
+  const acctKey = getMfaAccountKey(identifier);
+  await Promise.all([
+    recordFailedAttempt(ipKey, MFA_WINDOW_MS, client),
+    recordFailedAttempt(acctKey, MFA_WINDOW_MS, client),
+  ]);
+}
+
+/**
+ * Clears the MFA account rate limit upon successful verification.
+ */
+export async function recordMfaSuccess(
+  identifier: string,
+  client: DbClient = defaultDb,
+): Promise<void> {
+  const acctKey = getMfaAccountKey(identifier);
+  await resetRateLimit(acctKey, client);
 }

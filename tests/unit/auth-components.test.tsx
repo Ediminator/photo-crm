@@ -46,12 +46,36 @@ const mockSignInAction = vi.fn();
 const mockRequestPasswordResetAction = vi.fn();
 const mockResetPasswordAction = vi.fn();
 
+vi.mock('server-only', () => ({}));
+
 vi.mock('@/server/auth/actions', () => ({
   setupOwnerAction: (...args: unknown[]): unknown => mockSetupOwnerAction(...args),
   signInAction: (...args: unknown[]): unknown => mockSignInAction(...args),
   requestPasswordResetAction: (...args: unknown[]): unknown =>
     mockRequestPasswordResetAction(...args),
   resetPasswordAction: (...args: unknown[]): unknown => mockResetPasswordAction(...args),
+}));
+
+const mockVerifyMfaTotpAction = vi.fn();
+const mockVerifyMfaRecoveryCodeAction = vi.fn();
+const mockStartPasskeyAuthenticationAction = vi.fn();
+const mockCompletePasskeyAuthenticationAction = vi.fn();
+
+vi.mock('@/server/auth/mfa-actions', () => ({
+  verifyMfaTotpAction: (...args: unknown[]): unknown => mockVerifyMfaTotpAction(...args),
+  verifyMfaRecoveryCodeAction: (...args: unknown[]): unknown =>
+    mockVerifyMfaRecoveryCodeAction(...args),
+  startPasskeyAuthenticationAction: (...args: unknown[]): unknown =>
+    mockStartPasskeyAuthenticationAction(...args),
+  completePasskeyAuthenticationAction: (...args: unknown[]): unknown =>
+    mockCompletePasskeyAuthenticationAction(...args),
+}));
+
+let mockIsWebAuthnSupported = true;
+vi.mock('@/lib/webauthn-client', () => ({
+  isWebAuthnSupported: () => mockIsWebAuthnSupported,
+  base64UrlToBuffer: () => new ArrayBuffer(0),
+  bufferToBase64Url: () => 'mock-b64',
 }));
 
 import { SetupForm } from '@/components/auth/setup-form';
@@ -116,12 +140,39 @@ function findInputs(element: React.ReactElement): InputProps[] {
   return inputs;
 }
 
+function findButtonByTestId(
+  element: React.ReactElement,
+  testId: string,
+): { onClick?: () => void | Promise<void> } | undefined {
+  let found: { onClick?: () => void | Promise<void> } | undefined;
+  function traverse(node: unknown): void {
+    if (!node || typeof node !== 'object') return;
+    if (React.isValidElement(node)) {
+      const props = node.props as Record<string, unknown>;
+      if (props['data-testid'] === testId && typeof props.onClick === 'function') {
+        found = { onClick: props.onClick as () => void | Promise<void> };
+        return;
+      }
+      if (props.children) {
+        traverse(props.children);
+      }
+    } else if (Array.isArray(node)) {
+      for (const item of node) {
+        traverse(item);
+      }
+    }
+  }
+  traverse(element);
+  return found;
+}
+
 describe('Auth Client Components and Form Submissions', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockSearchParams = new URLSearchParams();
     mockIsPending = false;
     mockStateQueue = [];
+    mockIsWebAuthnSupported = true;
   });
 
   describe('SetupForm', () => {
@@ -315,6 +366,330 @@ describe('Auth Client Components and Form Submissions', () => {
       // Must NOT redirect to https://attacker.com
       expect(mockPush).toHaveBeenCalledWith('/en');
       mockSearchParams = new URLSearchParams();
+    });
+
+    it('renders MFA step with TOTP input and verify button', () => {
+      mockStateQueue = [
+        'mfa', // step
+        'user@example.com', // email
+        '', // password
+        null, // error
+        'ticket-123', // mfaTicket
+        'totp', // mfaMode
+        '', // totpCode
+        '', // recoveryCode
+      ];
+      const html = renderToStaticMarkup(<SignInForm locale="en" />);
+      expect(html).toContain('data-testid="mfa-challenge-form"');
+      expect(html).toContain('data-testid="mfa-code-input"');
+      expect(html).toContain('data-testid="mfa-submit-btn"');
+      expect(html).toContain('translated-verifyMfa');
+    });
+
+    it('renders MFA step with recovery code input when mode is recovery', () => {
+      mockStateQueue = [
+        'mfa', // step
+        'user@example.com', // email
+        '', // password
+        null, // error
+        'ticket-123', // mfaTicket
+        'recovery', // mfaMode
+        '', // totpCode
+        '', // recoveryCode
+      ];
+      const html = renderToStaticMarkup(<SignInForm locale="en" />);
+      expect(html).toContain('data-testid="recovery-code-input"');
+    });
+
+    it('triggers input onChange handlers in MFA step for totp and recovery codes', () => {
+      mockStateQueue = ['mfa', 'user@example.com', '', null, 'ticket-123', 'totp', '', ''];
+      let inputs: InputProps[] = [];
+      function Wrapper() {
+        const tree = SignInForm({ locale: 'en' });
+        inputs = findInputs(tree);
+        return <div>{tree}</div>;
+      }
+      renderToStaticMarkup(<Wrapper />);
+      for (const input of inputs) {
+        input.onChange?.({ target: { value: '123456' } });
+      }
+
+      mockStateQueue = ['mfa', 'user@example.com', '', null, 'ticket-123', 'recovery', '', ''];
+      renderToStaticMarkup(<Wrapper />);
+      for (const input of inputs) {
+        input.onChange?.({ target: { value: 'REC-1234-5678' } });
+      }
+    });
+
+    it('submits TOTP code in MFA step and navigates on success', async () => {
+      mockVerifyMfaTotpAction.mockResolvedValueOnce({
+        success: true,
+        data: { user: { id: 'u1', email: 'owner@example.com', name: 'Owner' } },
+      });
+
+      mockStateQueue = ['mfa', 'user@example.com', '', null, 'ticket-123', 'totp', '123456', ''];
+
+      let formProps: FormProps | undefined;
+      function Wrapper() {
+        const tree = SignInForm({ locale: 'en' });
+        formProps = findFormProps(tree);
+        return <div>{tree}</div>;
+      }
+
+      renderToStaticMarkup(<Wrapper />);
+      await formProps?.onSubmit({ preventDefault: () => undefined });
+      expect(mockVerifyMfaTotpAction).toHaveBeenCalledWith({
+        mfaTicket: 'ticket-123',
+        code: '123456',
+      });
+      expect(mockPush).toHaveBeenCalledWith('/en');
+      expect(mockRefresh).toHaveBeenCalled();
+    });
+
+    it('sets error when TOTP code verification fails', async () => {
+      mockVerifyMfaTotpAction.mockResolvedValueOnce({
+        success: false,
+        error: 'Invalid authenticator code.',
+      });
+
+      mockStateQueue = ['mfa', 'user@example.com', '', null, 'ticket-123', 'totp', '000000', ''];
+
+      let formProps: FormProps | undefined;
+      function Wrapper() {
+        const tree = SignInForm({ locale: 'en' });
+        formProps = findFormProps(tree);
+        return <div>{tree}</div>;
+      }
+
+      renderToStaticMarkup(<Wrapper />);
+      await formProps?.onSubmit({ preventDefault: () => undefined });
+      expect(mockVerifyMfaTotpAction).toHaveBeenCalled();
+    });
+
+    it('submits recovery code in MFA step and navigates on success', async () => {
+      mockVerifyMfaRecoveryCodeAction.mockResolvedValueOnce({
+        success: true,
+        data: { user: { id: 'u1', email: 'owner@example.com', name: 'Owner' } },
+      });
+
+      mockStateQueue = [
+        'mfa',
+        'user@example.com',
+        '',
+        null,
+        'ticket-123',
+        'recovery',
+        '',
+        'REC-1234-5678',
+      ];
+
+      let formProps: FormProps | undefined;
+      function Wrapper() {
+        const tree = SignInForm({ locale: 'en' });
+        formProps = findFormProps(tree);
+        return <div>{tree}</div>;
+      }
+
+      renderToStaticMarkup(<Wrapper />);
+      await formProps?.onSubmit({ preventDefault: () => undefined });
+      expect(mockVerifyMfaRecoveryCodeAction).toHaveBeenCalledWith({
+        mfaTicket: 'ticket-123',
+        recoveryCode: 'REC-1234-5678',
+      });
+      expect(mockPush).toHaveBeenCalledWith('/en');
+    });
+
+    it('sets error when recovery code verification fails', async () => {
+      mockVerifyMfaRecoveryCodeAction.mockResolvedValueOnce({
+        success: false,
+        error: 'Invalid recovery code.',
+      });
+
+      mockStateQueue = [
+        'mfa',
+        'user@example.com',
+        '',
+        null,
+        'ticket-123',
+        'recovery',
+        '',
+        'REC-BAD-CODE',
+      ];
+
+      let formProps: FormProps | undefined;
+      function Wrapper() {
+        const tree = SignInForm({ locale: 'en' });
+        formProps = findFormProps(tree);
+        return <div>{tree}</div>;
+      }
+
+      renderToStaticMarkup(<Wrapper />);
+      await formProps?.onSubmit({ preventDefault: () => undefined });
+      expect(mockVerifyMfaRecoveryCodeAction).toHaveBeenCalled();
+    });
+
+    it('transitions to MFA step when signInAction returns requiresMfa: true', async () => {
+      mockSignInAction.mockResolvedValueOnce({
+        requiresMfa: true,
+        mfaTicket: 'ticket-abc',
+      });
+
+      let formProps: FormProps | undefined;
+      function Wrapper() {
+        const tree = SignInForm({ locale: 'en' });
+        formProps = findFormProps(tree);
+        return <div>{tree}</div>;
+      }
+
+      renderToStaticMarkup(<Wrapper />);
+      await formProps?.onSubmit({ preventDefault: () => undefined });
+      expect(mockSignInAction).toHaveBeenCalled();
+    });
+
+    it('executes passkey sign in flow successfully', async () => {
+      mockStartPasskeyAuthenticationAction.mockResolvedValueOnce({
+        success: true,
+        data: {
+          options: {
+            challenge: 'test-challenge',
+            rpId: 'localhost',
+            userVerification: 'preferred',
+            timeout: 60000,
+          },
+        },
+      });
+
+      const mockGet = vi.fn().mockResolvedValueOnce({
+        id: 'cred-1',
+        response: {
+          clientDataJSON: new ArrayBuffer(8),
+          authenticatorData: new ArrayBuffer(8),
+          signature: new ArrayBuffer(8),
+          userHandle: new ArrayBuffer(8),
+        },
+      });
+
+      Object.defineProperty(global.navigator, 'credentials', {
+        value: { get: mockGet },
+        configurable: true,
+        writable: true,
+      });
+
+      mockCompletePasskeyAuthenticationAction.mockResolvedValueOnce({
+        success: true,
+        data: { user: { id: 'u1', email: 'owner@example.com', name: 'Owner' } },
+      });
+
+      let buttonProps: { onClick?: () => void | Promise<void> } | undefined;
+      function Wrapper() {
+        const tree = SignInForm({ locale: 'en' });
+        buttonProps = findButtonByTestId(tree, 'passkey-signin-btn');
+        return <div>{tree}</div>;
+      }
+
+      renderToStaticMarkup(<Wrapper />);
+      expect(buttonProps).toBeDefined();
+      await buttonProps?.onClick?.();
+      await new Promise((resolve) => setTimeout(resolve, 20));
+
+      expect(mockStartPasskeyAuthenticationAction).toHaveBeenCalled();
+      expect(mockGet).toHaveBeenCalled();
+      expect(mockCompletePasskeyAuthenticationAction).toHaveBeenCalled();
+      expect(mockPush).toHaveBeenCalledWith('/en');
+      expect(mockRefresh).toHaveBeenCalled();
+    });
+
+    it('sets error when passkey sign in is clicked but WebAuthn is not supported', async () => {
+      mockIsWebAuthnSupported = false;
+
+      let buttonProps: { onClick?: () => void | Promise<void> } | undefined;
+      function Wrapper() {
+        const tree = SignInForm({ locale: 'en' });
+        buttonProps = findButtonByTestId(tree, 'passkey-signin-btn');
+        return <div>{tree}</div>;
+      }
+
+      renderToStaticMarkup(<Wrapper />);
+      await buttonProps?.onClick?.();
+      expect(mockStartPasskeyAuthenticationAction).not.toHaveBeenCalled();
+    });
+
+    it('handles passkey start failure, credential cancellation, complete failure, and errors', async () => {
+      // 1. Start action failure
+      mockStartPasskeyAuthenticationAction.mockResolvedValueOnce({
+        success: false,
+        error: 'Failed to start passkey auth.',
+      });
+
+      let buttonProps: { onClick?: () => void | Promise<void> } | undefined;
+      function Wrapper() {
+        const tree = SignInForm({ locale: 'en' });
+        buttonProps = findButtonByTestId(tree, 'passkey-signin-btn');
+        return <div>{tree}</div>;
+      }
+
+      renderToStaticMarkup(<Wrapper />);
+      await buttonProps?.onClick?.();
+      expect(mockStartPasskeyAuthenticationAction).toHaveBeenCalled();
+
+      // 2. User cancels passkey prompt (credentials.get returns null)
+      mockStartPasskeyAuthenticationAction.mockResolvedValueOnce({
+        success: true,
+        data: {
+          options: {
+            challenge: 'test-challenge',
+            rpId: 'localhost',
+          },
+        },
+      });
+      Object.defineProperty(global.navigator, 'credentials', {
+        value: { get: vi.fn().mockResolvedValueOnce(null) },
+        configurable: true,
+        writable: true,
+      });
+
+      renderToStaticMarkup(<Wrapper />);
+      await buttonProps?.onClick?.();
+
+      // 3. Complete action failure
+      mockStartPasskeyAuthenticationAction.mockResolvedValueOnce({
+        success: true,
+        data: {
+          options: {
+            challenge: 'test-challenge',
+            rpId: 'localhost',
+          },
+        },
+      });
+      Object.defineProperty(global.navigator, 'credentials', {
+        value: {
+          get: vi.fn().mockResolvedValueOnce({
+            id: 'cred-1',
+            response: {
+              clientDataJSON: new ArrayBuffer(0),
+              authenticatorData: new ArrayBuffer(0),
+              signature: new ArrayBuffer(0),
+            },
+          }),
+        },
+        configurable: true,
+        writable: true,
+      });
+      mockCompletePasskeyAuthenticationAction.mockResolvedValueOnce({
+        success: false,
+        error: 'Passkey verification failed.',
+      });
+
+      renderToStaticMarkup(<Wrapper />);
+      await buttonProps?.onClick?.();
+
+      // 4. Exception thrown
+      mockStartPasskeyAuthenticationAction.mockRejectedValueOnce(
+        new Error('Network error during passkey auth'),
+      );
+
+      renderToStaticMarkup(<Wrapper />);
+      await buttonProps?.onClick?.();
     });
   });
 

@@ -10,6 +10,8 @@ export const DEFAULT_STUDIO_SETTINGS: Omit<StudioSettings, 'id' | 'created_at' |
   default_locale: 'en',
   timezone: 'UTC',
   currency: 'EUR',
+  mfa_required: false,
+  mfa_postponed_until: null,
 };
 
 // Generic database interface compatible with both PostgresJsDatabase and PgliteDatabase
@@ -40,6 +42,8 @@ export async function getStudioSettings(client: QueryClient = defaultDb): Promis
       default_locale: DEFAULT_STUDIO_SETTINGS.default_locale,
       timezone: DEFAULT_STUDIO_SETTINGS.timezone,
       currency: DEFAULT_STUDIO_SETTINGS.currency,
+      mfa_required: DEFAULT_STUDIO_SETTINGS.mfa_required,
+      mfa_postponed_until: DEFAULT_STUDIO_SETTINGS.mfa_postponed_until,
       created_at: now,
       updated_at: now,
     })
@@ -69,15 +73,24 @@ export async function updateStudioSettings(
 
   // 3. Update the record
   const now = new Date();
+  const updatePayload: Record<string, unknown> = {
+    studio_name: validated.studio_name,
+    default_locale: validated.default_locale,
+    timezone: validated.timezone,
+    currency: validated.currency,
+    updated_at: now,
+  };
+
+  if (validated.mfa_required !== undefined) {
+    updatePayload.mfa_required = validated.mfa_required;
+  }
+  if (validated.mfa_postponed_until !== undefined) {
+    updatePayload.mfa_postponed_until = validated.mfa_postponed_until;
+  }
+
   const [updated] = await client
     .update(studioSettings)
-    .set({
-      studio_name: validated.studio_name,
-      default_locale: validated.default_locale,
-      timezone: validated.timezone,
-      currency: validated.currency,
-      updated_at: now,
-    })
+    .set(updatePayload)
     .where(eq(studioSettings.id, current.id))
     .returning();
 
