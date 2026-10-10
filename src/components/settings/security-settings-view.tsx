@@ -871,7 +871,7 @@ export function SecuritySettingsView({
                   }}
                   disabled={isPending}
                   aria-label={`${t('deletePasskey')} ${pk.name}`}
-                  className="inline-flex items-center justify-center p-2 rounded text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40"
+                  className="inline-flex items-center justify-center p-2 rounded text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40"
                 >
                   <Trash2 className="h-4 w-4" />
                 </button>
@@ -937,7 +937,7 @@ export function SecuritySettingsView({
                     handleRevokeSession(s.id);
                   }}
                   disabled={isPending}
-                  className="inline-flex items-center justify-center text-xs font-medium text-red-600 hover:underline px-2 py-1"
+                  className="inline-flex items-center justify-center text-xs font-medium text-red-600 dark:text-red-400 hover:underline px-2 py-1"
                 >
                   {t('revokeSession')}
                 </button>

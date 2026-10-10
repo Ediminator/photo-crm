@@ -264,6 +264,11 @@ describe('Auth Client Components and Form Submissions', () => {
       expect(html).toContain('/forgot-password');
     });
 
+    it('I2-U02: renders localized divider between password and passkey sign in', () => {
+      const html = renderToStaticMarkup(<SignInForm locale="de" />);
+      expect(html).toContain('translated-or');
+    });
+
     it('executes signInAction and navigates on success', async () => {
       mockSignInAction.mockResolvedValueOnce({
         success: true,

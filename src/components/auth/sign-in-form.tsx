@@ -29,6 +29,7 @@ export function sanitizeCallbackUrl(raw: string | null | undefined, locale: stri
 
 export function SignInForm({ locale }: { locale: string }) {
   const t = useTranslations('auth.signIn');
+  const tCommon = useTranslations('auth.common');
   const router = useRouter();
   const searchParams = useSearchParams();
   const callbackUrl = sanitizeCallbackUrl(searchParams.get('callbackUrl'), locale);
@@ -258,7 +259,7 @@ export function SignInForm({ locale }: { locale: string }) {
                 <span className="w-full border-t border-muted" />
               </div>
               <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-card px-2 text-muted-foreground">or</span>
+                <span className="bg-card px-2 text-muted-foreground">{tCommon('or')}</span>
               </div>
             </div>
 

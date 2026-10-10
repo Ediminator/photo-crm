@@ -1294,4 +1294,17 @@ describe('SecuritySettingsView Component', () => {
     renderToStaticMarkup(<Wrapper3 />);
     await btn?.onClick?.();
   });
+
+  it('I2-U01: renders revoke-session-btn with dark:text-red-400 for WCAG 1.4.3 contrast', () => {
+    const html = renderToStaticMarkup(
+      <SecuritySettingsView
+        initialStatus={baseStatus}
+        initialPasskeys={samplePasskeys}
+        initialSessions={sampleSessions}
+        locale="en"
+      />,
+    );
+    expect(html).toContain('data-testid="revoke-session-btn"');
+    expect(html).toMatch(/data-testid="revoke-session-btn"[^>]*dark:text-red-400/);
+  });
 });
