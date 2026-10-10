@@ -65,7 +65,7 @@ export const emailSchema = z
 
 export const countryCodeSchema = z
   .string()
-  .transform((s) => s.trim())
+  .transform((s) => s.trim().toUpperCase())
   .pipe(
     z
       .string()
