@@ -89,13 +89,13 @@ let mockVerifyAuthThrows = false;
 vi.mock('@/server/auth/webauthn', () => ({
   getWebAuthnConfig: vi.fn(() => ({
     rpId: 'localhost',
-    rpName: 'PhotoCRM',
+    rpName: 'Ownlight',
     origin: 'http://localhost:3000',
   })),
   generateWebAuthnChallenge: vi.fn(() => 'mock-challenge-token'),
   createRegistrationOptions: vi.fn(() => ({
     challenge: 'mock-challenge-token',
-    rp: { id: 'localhost', name: 'PhotoCRM' },
+    rp: { id: 'localhost', name: 'Ownlight' },
   })),
   createAuthenticationOptions: vi.fn(() => ({
     challenge: 'mock-challenge-token',

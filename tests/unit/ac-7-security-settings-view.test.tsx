@@ -729,7 +729,7 @@ describe('SecuritySettingsView Component', () => {
       data: {
         options: {
           challenge: 'test-challenge',
-          rp: { id: 'localhost', name: 'PhotoCRM' },
+          rp: { id: 'localhost', name: 'Ownlight' },
           user: { id: 'user-id', name: 'Owner', displayName: 'Owner' },
           pubKeyCredParams: [],
         },
@@ -1077,7 +1077,7 @@ describe('SecuritySettingsView Component', () => {
       data: {
         options: {
           challenge: 'challenge',
-          rp: { id: 'localhost', name: 'PhotoCRM' },
+          rp: { id: 'localhost', name: 'Ownlight' },
           user: { id: 'user-id', name: 'Owner', displayName: 'Owner' },
         },
       },
@@ -1115,7 +1115,7 @@ describe('SecuritySettingsView Component', () => {
       data: {
         options: {
           challenge: 'challenge',
-          rp: { id: 'localhost', name: 'PhotoCRM' },
+          rp: { id: 'localhost', name: 'Ownlight' },
           user: { id: 'user-id', name: 'Owner', displayName: 'Owner' },
         },
       },
