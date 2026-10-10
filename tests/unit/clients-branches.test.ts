@@ -21,6 +21,8 @@ import * as settingsRepo from '@/server/settings/repo';
 import * as auditModule from '@/server/audit';
 import { UnauthorizedError, ForbiddenError } from '@/server/auth/guards';
 import {
+  isValidCountryCode,
+  normalizeEmail,
   singleLineString,
   countryCodeSchema,
   updateContactInputSchema,
@@ -132,6 +134,9 @@ describe('Clients Domain & Actions Branch Coverage (Unit)', () => {
         error: 'FORBIDDEN',
       });
 
+      vi.spyOn(authGuards, 'requireAuth').mockRejectedValueOnce(new Error('Crash in create'));
+      await expect(createClientAction({})).rejects.toThrow('Crash in create');
+
       vi.spyOn(authGuards, 'requireAuth').mockResolvedValue(ownerAuth);
       expect((await createClientAction({})).code).toBe('VALIDATION_FAILED');
 
@@ -152,6 +157,9 @@ describe('Clients Domain & Actions Branch Coverage (Unit)', () => {
         error: 'FORBIDDEN',
       });
 
+      vi.spyOn(authGuards, 'requireAuth').mockRejectedValueOnce(new Error('Crash in update'));
+      await expect(updateClientAction({})).rejects.toThrow('Crash in update');
+
       vi.spyOn(authGuards, 'requireAuth').mockResolvedValue(ownerAuth);
       expect((await updateClientAction({})).code).toBe('VALIDATION_FAILED');
 
@@ -171,6 +179,9 @@ describe('Clients Domain & Actions Branch Coverage (Unit)', () => {
         code: 'FORBIDDEN',
         error: 'FORBIDDEN',
       });
+
+      vi.spyOn(authGuards, 'requireAuth').mockRejectedValueOnce(new Error('Crash in add contact'));
+      await expect(addContactAction({})).rejects.toThrow('Crash in add contact');
 
       vi.spyOn(authGuards, 'requireAuth').mockResolvedValue(ownerAuth);
       expect((await addContactAction({})).code).toBe('VALIDATION_FAILED');
@@ -324,20 +335,17 @@ describe('Clients Domain & Actions Branch Coverage (Unit)', () => {
       });
 
       // Valid clientId string
-      const res = await updateClientAction(
-        {
-          clientId: '01912345-6789-7abc-8def-012345678000',
-          displayName: 'Updated Name',
-        },
-        { client: dummyDbClient },
-      );
+      const res = await updateClientAction({
+        clientId: '01912345-6789-7abc-8def-012345678000',
+        displayName: 'Updated Name',
+      });
       expect(res.success).toBe(true);
 
       // Non-string / null / empty clientId branches
-      await updateClientAction(null, { client: dummyDbClient });
-      await updateClientAction('string-input', { client: dummyDbClient });
-      await updateClientAction({ clientId: 12345 }, { client: dummyDbClient });
-      await updateClientAction({ clientId: '' }, { client: dummyDbClient });
+      await updateClientAction(null);
+      await updateClientAction('string-input');
+      await updateClientAction({ clientId: 12345 });
+      await updateClientAction({ clientId: '' });
     });
   });
 
@@ -386,6 +394,28 @@ describe('Clients Domain & Actions Branch Coverage (Unit)', () => {
       vi.spyOn(auditModule, 'audit').mockRejectedValueOnce(new Error('Audit DB is down'));
       await expect(
         authorizeClientWrite('client.created', null, apiKeyPrefixOnly, dummyDbClient),
+      ).rejects.toThrow(ForbiddenError);
+
+      // ApiKey with neither id nor prefix, and non-null targetId
+      const apiKeyNoIdNoPrefix: AuthContext = {
+        user: createMockUser(),
+        apiKey: createMockApiKey({ id: '', prefix: '', scopes: ['other:scope'] }),
+        authType: 'apiKey',
+        scopes: ['other:scope'],
+      };
+      await expect(
+        authorizeClientWrite('client.created', 'target-uuid', apiKeyNoIdNoPrefix, dummyDbClient),
+      ).rejects.toThrow(ForbiddenError);
+
+      // Owner role with apiKey missing write scope
+      const ownerApiKeyNoWriteScope: AuthContext = {
+        user: createMockUser({ role: 'owner' }),
+        apiKey: createMockApiKey({ scopes: ['clients:read'] }),
+        authType: 'apiKey',
+        scopes: ['clients:read'],
+      };
+      await expect(
+        authorizeClientWrite('client.created', null, ownerApiKeyNoWriteScope, dummyDbClient),
       ).rejects.toThrow(ForbiddenError);
 
       // RequireAuthOptions parameter passing
@@ -610,6 +640,93 @@ describe('Clients Domain & Actions Branch Coverage (Unit)', () => {
         dummyDbClient,
       );
       expect(rmDelFailedRes.code).toBe('NOT_FOUND');
+
+      // getClient found
+      vi.spyOn(clientRepo, 'getClientById').mockResolvedValueOnce(createMockClientWithRelations());
+      const getFoundRes = await clientService.getClient(
+        '01912345-6789-7abc-8def-012345678000',
+        dummyDbClient,
+      );
+      expect(getFoundRes.success).toBe(true);
+
+      // updateContact when fields change (familyName, phone, isPrimary)
+      vi.spyOn(clientRepo, 'getClientById').mockResolvedValueOnce(
+        createMockClientWithRelations({
+          contacts: [
+            {
+              id: 'contact-1',
+              clientId: '01912345-6789-7abc-8def-012345678000',
+              givenName: 'OldGiven',
+              familyName: 'OldFamily',
+              email: 'old@example.com',
+              emailNormalized: 'old@example.com',
+              phone: '111',
+              isPrimary: false,
+              createdAt: new Date(),
+              updatedAt: new Date(),
+            },
+          ],
+        }),
+      );
+      vi.spyOn(clientRepo, 'findDuplicateEmails').mockResolvedValueOnce([]);
+      vi.spyOn(clientRepo, 'updateContactRecord').mockResolvedValueOnce({
+        id: 'contact-1',
+        clientId: '01912345-6789-7abc-8def-012345678000',
+        givenName: 'NewGiven',
+        familyName: 'NewFamily',
+        email: 'new@example.com',
+        emailNormalized: 'new@example.com',
+        phone: '222',
+        isPrimary: true,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+      const updateContactAllFieldsRes = await clientService.updateContact(
+        {
+          clientId: '01912345-6789-7abc-8def-012345678000',
+          contactId: 'contact-1',
+          givenName: 'NewGiven',
+          familyName: 'NewFamily',
+          email: 'new@example.com',
+          phone: '222',
+          isPrimary: true,
+          acknowledgeDuplicates: true,
+        },
+        ownerAuth,
+        dummyDbClient,
+      );
+      expect(updateContactAllFieldsRes.success).toBe(true);
+
+      // updateContact when updateContactRecord returns null
+      vi.spyOn(clientRepo, 'getClientById').mockResolvedValueOnce(
+        createMockClientWithRelations({
+          contacts: [
+            {
+              id: 'contact-1',
+              clientId: '01912345-6789-7abc-8def-012345678000',
+              givenName: 'Given',
+              familyName: null,
+              email: null,
+              emailNormalized: null,
+              phone: null,
+              isPrimary: true,
+              createdAt: new Date(),
+              updatedAt: new Date(),
+            },
+          ],
+        }),
+      );
+      vi.spyOn(clientRepo, 'updateContactRecord').mockResolvedValueOnce(null);
+      const updateContactFailedRes = await clientService.updateContact(
+        {
+          clientId: '01912345-6789-7abc-8def-012345678000',
+          contactId: 'contact-1',
+          givenName: 'Given2',
+        },
+        ownerAuth,
+        dummyDbClient,
+      );
+      expect(updateContactFailedRes.code).toBe('NOT_FOUND');
     });
   });
 
@@ -624,6 +741,26 @@ describe('Clients Domain & Actions Branch Coverage (Unit)', () => {
       expect(countryCodeSchema.safeParse('de').success).toBe(true); // transformed to uppercase
       expect(countryCodeSchema.safeParse('XYZ').success).toBe(false);
       expect(countryCodeSchema.safeParse('ZZ').success).toBe(false);
+
+      // isValidCountryCode catch block
+      const displayNamesSpy = vi.spyOn(Intl, 'DisplayNames').mockImplementation(function () {
+        throw new Error('Intl unsupported');
+      });
+      expect(isValidCountryCode('DE')).toBe(false);
+      displayNamesSpy.mockRestore();
+
+      // normalizeEmail branches
+      expect(normalizeEmail('   ')).toBeNull();
+      expect(normalizeEmail(null)).toBeNull();
+      expect(normalizeEmail(undefined)).toBeNull();
+      expect(normalizeEmail(123 as unknown as string)).toBeNull();
+
+      // addContactInputSchema with only familyName
+      const familyOnlyAdd = addContactInputSchema.safeParse({
+        clientId: '01912345-6789-7abc-8def-012345678000',
+        familyName: 'Smith',
+      });
+      expect(familyOnlyAdd.success).toBe(true);
 
       // updateContactInputSchema refinement branches
       const validUpdate = updateContactInputSchema.safeParse({

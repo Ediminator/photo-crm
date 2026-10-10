@@ -15,14 +15,8 @@ import {
   listClientsInputSchema,
 } from './schema';
 import * as clientService from './service';
-import type { DbClient } from '@/server/db/client';
 import type { AddressType } from '@/server/db/schema/clients';
 import type { ClientWithRelations, ListClientsResult } from './repo';
-
-export interface ActionOptions {
-  headers?: Headers | Record<string, string | undefined>;
-  client?: DbClient;
-}
 
 export type ClientActionResult<T> = clientService.ServiceResult<T>;
 
@@ -70,12 +64,11 @@ function handleValidationError(error: {
  */
 export async function createClientAction(
   rawInput: unknown,
-  options?: ActionOptions,
 ): Promise<ClientActionResult<{ clientId: string }>> {
   let auth;
   try {
-    auth = await requireAuth({ headers: options?.headers, client: options?.client });
-    await authorizeClientWrite('client.created', null, auth, options?.client);
+    auth = await requireAuth();
+    await authorizeClientWrite('client.created', null, auth);
   } catch (err) {
     if (err instanceof UnauthorizedError) {
       return { success: false, code: 'UNAUTHORIZED', error: 'UNAUTHORIZED' };
@@ -91,7 +84,7 @@ export async function createClientAction(
     return handleValidationError(parsed.error);
   }
 
-  return await clientService.createClient(parsed.data, auth, options?.client);
+  return await clientService.createClient(parsed.data, auth);
 }
 
 /**
@@ -99,13 +92,12 @@ export async function createClientAction(
  */
 export async function updateClientAction(
   rawInput: unknown,
-  options?: ActionOptions,
 ): Promise<ClientActionResult<{ clientId: string }>> {
   let auth;
   try {
-    auth = await requireAuth({ headers: options?.headers, client: options?.client });
+    auth = await requireAuth();
     const targetId = extractClientId(rawInput);
-    await authorizeClientWrite('client.updated', targetId, auth, options?.client);
+    await authorizeClientWrite('client.updated', targetId, auth);
   } catch (err) {
     if (err instanceof UnauthorizedError) {
       return { success: false, code: 'UNAUTHORIZED', error: 'UNAUTHORIZED' };
@@ -121,7 +113,7 @@ export async function updateClientAction(
     return handleValidationError(parsed.error);
   }
 
-  return await clientService.updateClient(parsed.data, auth, options?.client);
+  return await clientService.updateClient(parsed.data, auth);
 }
 
 /**
@@ -129,13 +121,12 @@ export async function updateClientAction(
  */
 export async function addContactAction(
   rawInput: unknown,
-  options?: ActionOptions,
 ): Promise<ClientActionResult<{ contactId: string }>> {
   let auth;
   try {
-    auth = await requireAuth({ headers: options?.headers, client: options?.client });
+    auth = await requireAuth();
     const targetId = extractClientId(rawInput);
-    await authorizeClientWrite('client.contact.added', targetId, auth, options?.client);
+    await authorizeClientWrite('client.contact.added', targetId, auth);
   } catch (err) {
     if (err instanceof UnauthorizedError) {
       return { success: false, code: 'UNAUTHORIZED', error: 'UNAUTHORIZED' };
@@ -151,7 +142,7 @@ export async function addContactAction(
     return handleValidationError(parsed.error);
   }
 
-  return await clientService.addContact(parsed.data, auth, options?.client);
+  return await clientService.addContact(parsed.data, auth);
 }
 
 /**
@@ -159,13 +150,12 @@ export async function addContactAction(
  */
 export async function updateContactAction(
   rawInput: unknown,
-  options?: ActionOptions,
 ): Promise<ClientActionResult<{ contactId: string }>> {
   let auth;
   try {
-    auth = await requireAuth({ headers: options?.headers, client: options?.client });
+    auth = await requireAuth();
     const targetId = extractClientId(rawInput);
-    await authorizeClientWrite('client.contact.updated', targetId, auth, options?.client);
+    await authorizeClientWrite('client.contact.updated', targetId, auth);
   } catch (err) {
     if (err instanceof UnauthorizedError) {
       return { success: false, code: 'UNAUTHORIZED', error: 'UNAUTHORIZED' };
@@ -181,7 +171,7 @@ export async function updateContactAction(
     return handleValidationError(parsed.error);
   }
 
-  return await clientService.updateContact(parsed.data, auth, options?.client);
+  return await clientService.updateContact(parsed.data, auth);
 }
 
 /**
@@ -189,13 +179,12 @@ export async function updateContactAction(
  */
 export async function removeContactAction(
   rawInput: unknown,
-  options?: ActionOptions,
 ): Promise<ClientActionResult<{ contactId: string }>> {
   let auth;
   try {
-    auth = await requireAuth({ headers: options?.headers, client: options?.client });
+    auth = await requireAuth();
     const targetId = extractClientId(rawInput);
-    await authorizeClientWrite('client.contact.removed', targetId, auth, options?.client);
+    await authorizeClientWrite('client.contact.removed', targetId, auth);
   } catch (err) {
     if (err instanceof UnauthorizedError) {
       return { success: false, code: 'UNAUTHORIZED', error: 'UNAUTHORIZED' };
@@ -211,7 +200,7 @@ export async function removeContactAction(
     return handleValidationError(parsed.error);
   }
 
-  return await clientService.removeContact(parsed.data, auth, options?.client);
+  return await clientService.removeContact(parsed.data, auth);
 }
 
 /**
@@ -219,13 +208,12 @@ export async function removeContactAction(
  */
 export async function upsertAddressAction(
   rawInput: unknown,
-  options?: ActionOptions,
 ): Promise<ClientActionResult<{ addressId: string }>> {
   let auth;
   try {
-    auth = await requireAuth({ headers: options?.headers, client: options?.client });
+    auth = await requireAuth();
     const targetId = extractClientId(rawInput);
-    await authorizeClientWrite('client.address.upserted', targetId, auth, options?.client);
+    await authorizeClientWrite('client.address.upserted', targetId, auth);
   } catch (err) {
     if (err instanceof UnauthorizedError) {
       return { success: false, code: 'UNAUTHORIZED', error: 'UNAUTHORIZED' };
@@ -241,7 +229,7 @@ export async function upsertAddressAction(
     return handleValidationError(parsed.error);
   }
 
-  return await clientService.upsertAddress(parsed.data, auth, options?.client);
+  return await clientService.upsertAddress(parsed.data, auth);
 }
 
 /**
@@ -249,13 +237,12 @@ export async function upsertAddressAction(
  */
 export async function removeAddressAction(
   rawInput: unknown,
-  options?: ActionOptions,
 ): Promise<ClientActionResult<{ type: AddressType }>> {
   let auth;
   try {
-    auth = await requireAuth({ headers: options?.headers, client: options?.client });
+    auth = await requireAuth();
     const targetId = extractClientId(rawInput);
-    await authorizeClientWrite('client.address.removed', targetId, auth, options?.client);
+    await authorizeClientWrite('client.address.removed', targetId, auth);
   } catch (err) {
     if (err instanceof UnauthorizedError) {
       return { success: false, code: 'UNAUTHORIZED', error: 'UNAUTHORIZED' };
@@ -271,7 +258,7 @@ export async function removeAddressAction(
     return handleValidationError(parsed.error);
   }
 
-  return await clientService.removeAddress(parsed.data, auth, options?.client);
+  return await clientService.removeAddress(parsed.data, auth);
 }
 
 /**
@@ -279,11 +266,10 @@ export async function removeAddressAction(
  */
 export async function getClientAction(
   rawInput: unknown,
-  options?: ActionOptions,
 ): Promise<ClientActionResult<ClientWithRelations>> {
   try {
-    const auth = await requireAuth({ headers: options?.headers, client: options?.client });
-    await authorizeClientRead(auth, options?.client);
+    const auth = await requireAuth();
+    await authorizeClientRead(auth);
   } catch (err) {
     if (err instanceof UnauthorizedError) {
       return { success: false, code: 'UNAUTHORIZED', error: 'UNAUTHORIZED' };
@@ -299,7 +285,7 @@ export async function getClientAction(
     return handleValidationError(parsed.error);
   }
 
-  return await clientService.getClient(parsed.data.clientId, options?.client);
+  return await clientService.getClient(parsed.data.clientId);
 }
 
 /**
@@ -307,11 +293,10 @@ export async function getClientAction(
  */
 export async function listClientsAction(
   rawInput: unknown = {},
-  options?: ActionOptions,
 ): Promise<ClientActionResult<ListClientsResult>> {
   try {
-    const auth = await requireAuth({ headers: options?.headers, client: options?.client });
-    await authorizeClientRead(auth, options?.client);
+    const auth = await requireAuth();
+    await authorizeClientRead(auth);
   } catch (err) {
     if (err instanceof UnauthorizedError) {
       return { success: false, code: 'UNAUTHORIZED', error: 'UNAUTHORIZED' };
@@ -327,5 +312,5 @@ export async function listClientsAction(
     return handleValidationError(parsed.error);
   }
 
-  return await clientService.getClientList(parsed.data.page, parsed.data.pageSize, options?.client);
+  return await clientService.getClientList(parsed.data.page, parsed.data.pageSize);
 }

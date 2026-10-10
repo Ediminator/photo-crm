@@ -2,6 +2,29 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 
 vi.mock('server-only', () => ({}));
 
+const mockCookiesStore = new Map<string, string>();
+const mockHeadersStore = new Map<string, string>();
+
+vi.mock('next/headers', () => ({
+  cookies: () =>
+    Promise.resolve({
+      get: (name: string) => {
+        const val = mockCookiesStore.get(name);
+        return val ? { name, value: val } : undefined;
+      },
+      set: (name: string, value: string) => {
+        mockCookiesStore.set(name, value);
+      },
+      delete: (name: string) => {
+        mockCookiesStore.delete(name);
+      },
+    }),
+  headers: () =>
+    Promise.resolve({
+      get: (name: string) => mockHeadersStore.get(name.toLowerCase()) ?? null,
+    }),
+}));
+
 import { createIsolatedTestDatabase, type TestDatabaseInstance } from '../helpers/db-test-helper';
 import { createClientAction, upsertAddressAction } from '@/server/clients/actions';
 import { user } from '@/server/db/schema/auth';
@@ -12,11 +35,13 @@ import { createSession, SESSION_COOKIE_NAME } from '@/server/auth/session';
 describe('AC-2: Input validation and rejection of invalid payloads', () => {
   let testDb: TestDatabaseInstance;
   let dbClient: DbClient;
-  let ownerHeaders: Record<string, string>;
 
   beforeEach(async () => {
     testDb = await createIsolatedTestDatabase();
     dbClient = testDb.db as unknown as DbClient;
+    (globalThis as unknown as { db: DbClient | undefined }).db = dbClient;
+    mockCookiesStore.clear();
+    mockHeadersStore.clear();
 
     // Create owner user and session
     const [owner] = await dbClient
@@ -31,12 +56,11 @@ describe('AC-2: Input validation and rejection of invalid payloads', () => {
     if (!owner) throw new Error('Owner missing');
 
     const sessionRes = await createSession(owner.id, dbClient);
-    ownerHeaders = {
-      cookie: `${SESSION_COOKIE_NAME}=${sessionRes.token}`,
-    };
+    mockCookiesStore.set(SESSION_COOKIE_NAME, sessionRes.token);
   });
 
   afterEach(async () => {
+    (globalThis as unknown as { db: DbClient | undefined }).db = undefined;
     await testDb.destroy();
   });
 
@@ -50,7 +74,7 @@ describe('AC-2: Input validation and rejection of invalid payloads', () => {
       },
     };
 
-    const res = await createClientAction(invalidInput, { headers: ownerHeaders, client: dbClient });
+    const res = await createClientAction(invalidInput);
 
     expect(res.success).toBe(false);
     expect(res.code).toBe('VALIDATION_FAILED');
@@ -71,7 +95,7 @@ describe('AC-2: Input validation and rejection of invalid payloads', () => {
       },
     };
 
-    const res = await createClientAction(invalidInput, { headers: ownerHeaders, client: dbClient });
+    const res = await createClientAction(invalidInput);
 
     expect(res.success).toBe(false);
     expect(res.code).toBe('VALIDATION_FAILED');
@@ -92,7 +116,7 @@ describe('AC-2: Input validation and rejection of invalid payloads', () => {
       },
     };
 
-    const res = await createClientAction(invalidInput, { headers: ownerHeaders, client: dbClient });
+    const res = await createClientAction(invalidInput);
 
     expect(res.success).toBe(false);
     expect(res.code).toBe('VALIDATION_FAILED');
@@ -113,7 +137,7 @@ describe('AC-2: Input validation and rejection of invalid payloads', () => {
       },
     };
 
-    const res = await createClientAction(invalidInput, { headers: ownerHeaders, client: dbClient });
+    const res = await createClientAction(invalidInput);
 
     expect(res.success).toBe(false);
     expect(res.code).toBe('VALIDATION_FAILED');
@@ -134,7 +158,7 @@ describe('AC-2: Input validation and rejection of invalid payloads', () => {
       },
     };
 
-    const res = await createClientAction(invalidInput, { headers: ownerHeaders, client: dbClient });
+    const res = await createClientAction(invalidInput);
 
     expect(res.success).toBe(false);
     expect(res.code).toBe('VALIDATION_FAILED');
@@ -147,14 +171,11 @@ describe('AC-2: Input validation and rejection of invalid payloads', () => {
 
   it('AC-2: rejects country_code: "XX" with VALIDATION_FAILED and writes no row', async () => {
     // First create a valid client
-    const validClient = await createClientAction(
-      {
-        kind: 'person',
-        displayName: 'Address Client',
-        primaryContact: { givenName: 'John' },
-      },
-      { headers: ownerHeaders, client: dbClient },
-    );
+    const validClient = await createClientAction({
+      kind: 'person',
+      displayName: 'Address Client',
+      primaryContact: { givenName: 'John' },
+    });
 
     expect(validClient.success).toBe(true);
     if (!validClient.success) throw new Error('Expected success');
@@ -169,10 +190,7 @@ describe('AC-2: Input validation and rejection of invalid payloads', () => {
       country_code: 'XX',
     };
 
-    const res = await upsertAddressAction(invalidAddress, {
-      headers: ownerHeaders,
-      client: dbClient,
-    });
+    const res = await upsertAddressAction(invalidAddress);
 
     expect(res.success).toBe(false);
     expect(res.code).toBe('VALIDATION_FAILED');
@@ -193,7 +211,7 @@ describe('AC-2: Input validation and rejection of invalid payloads', () => {
       },
     };
 
-    const res = await createClientAction(invalidInput, { headers: ownerHeaders, client: dbClient });
+    const res = await createClientAction(invalidInput);
 
     expect(res.success).toBe(false);
     expect(res.code).toBe('VALIDATION_FAILED');
@@ -214,7 +232,7 @@ describe('AC-2: Input validation and rejection of invalid payloads', () => {
       maliciousField: 'exploit_payload',
     };
 
-    const res = await createClientAction(invalidInput, { headers: ownerHeaders, client: dbClient });
+    const res = await createClientAction(invalidInput);
 
     expect(res.success).toBe(false);
     expect(res.code).toBe('VALIDATION_FAILED');
