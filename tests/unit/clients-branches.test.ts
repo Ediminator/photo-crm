@@ -29,7 +29,75 @@ import {
 } from '@/server/clients/schema';
 import type { AuthContext } from '@/server/auth/guards';
 import type { DbClient } from '@/server/db/client';
+import type { ClientWithRelations } from '@/server/clients/repo';
 import type { AuditEvent } from '@/server/audit';
+import type { User, Session } from '@/server/db/schema/auth';
+import type { ApiKeyWithScopes } from '@/server/auth/api-keys';
+
+function createMockUser(overrides: Partial<User> = {}): User {
+  return {
+    id: '01912345-6789-7abc-8def-012345678000',
+    email: 'owner@example.com',
+    name: 'Owner',
+    emailVerified: true,
+    image: null,
+    role: 'owner',
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    ...overrides,
+  };
+}
+
+function createMockSession(overrides: Partial<Session> = {}): Session {
+  return {
+    id: '01912345-6789-7abc-8def-012345678001',
+    userId: '01912345-6789-7abc-8def-012345678000',
+    token: 'token-123',
+    expiresAt: new Date(Date.now() + 86400000),
+    ipAddress: null,
+    userAgent: null,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    lastReauthenticatedAt: new Date(),
+    ...overrides,
+  };
+}
+
+function createMockApiKey(overrides: Partial<ApiKeyWithScopes> = {}): ApiKeyWithScopes {
+  return {
+    id: 'key-1',
+    name: 'Test Key',
+    prefix: 'ow_',
+    tokenHash: 'hash',
+    scopes: ['*'],
+    expiresAt: null,
+    lastUsedAt: null,
+    userId: '01912345-6789-7abc-8def-012345678000',
+    revokedAt: null,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    ...overrides,
+  };
+}
+
+function createMockClientWithRelations(
+  overrides: Partial<ClientWithRelations> = {},
+): ClientWithRelations {
+  return {
+    client: {
+      id: '01912345-6789-7abc-8def-012345678000',
+      kind: 'person',
+      displayName: 'Test Client',
+      preferredLocale: 'en',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      lastActivityAt: new Date(),
+    },
+    contacts: [],
+    addresses: [],
+    ...overrides,
+  };
+}
 
 describe('Clients Domain & Actions Branch Coverage (Unit)', () => {
   beforeEach(() => {
@@ -40,15 +108,8 @@ describe('Clients Domain & Actions Branch Coverage (Unit)', () => {
 
   describe('Server Actions error and boundary branches', () => {
     const ownerAuth: AuthContext = {
-      user: {
-        id: '01912345-6789-7abc-8def-012345678000',
-        email: 'owner@example.com',
-        role: 'owner',
-      },
-      session: {
-        id: '01912345-6789-7abc-8def-012345678001',
-        userId: '01912345-6789-7abc-8def-012345678000',
-      },
+      user: createMockUser(),
+      session: createMockSession(),
       authType: 'session',
       scopes: ['*'],
     };
@@ -221,17 +282,7 @@ describe('Clients Domain & Actions Branch Coverage (Unit)', () => {
 
       vi.spyOn(clientService, 'getClient').mockResolvedValueOnce({
         success: true,
-        data: {
-          id: '01912345-6789-7abc-8def-012345678000',
-          kind: 'person',
-          displayName: 'Test Client',
-          preferredLocale: 'en',
-          createdAt: new Date(),
-          updatedAt: new Date(),
-          lastActivityAt: new Date(),
-          contacts: [],
-          addresses: [],
-        },
+        data: createMockClientWithRelations(),
       });
       expect(
         (await getClientAction({ clientId: '01912345-6789-7abc-8def-012345678000' })).success,
@@ -293,8 +344,8 @@ describe('Clients Domain & Actions Branch Coverage (Unit)', () => {
   describe('Policy branch coverage', () => {
     it('handles policy authorization scopes, role verification, and audit failure gracefully', async () => {
       const nonOwnerContext: AuthContext = {
-        user: { id: 'user-2', email: 'guest@example.com', role: 'client' },
-        session: { id: 'sess-2', userId: 'user-2' },
+        user: createMockUser({ role: 'client' }),
+        session: createMockSession(),
         authType: 'session',
         scopes: ['*'],
       };
@@ -311,8 +362,8 @@ describe('Clients Domain & Actions Branch Coverage (Unit)', () => {
 
       // ApiKey read missing scope
       const apiKeyNoScope: AuthContext = {
-        user: { id: 'user-1', email: 'owner@example.com', role: 'owner' },
-        apiKey: { id: 'key-1', prefix: 'ow_', scopes: ['other:scope'] },
+        user: createMockUser(),
+        apiKey: createMockApiKey({ scopes: ['other:scope'] }),
         authType: 'apiKey',
         scopes: ['other:scope'],
       };
@@ -322,8 +373,8 @@ describe('Clients Domain & Actions Branch Coverage (Unit)', () => {
 
       // ApiKey with prefix only (no id)
       const apiKeyPrefixOnly: AuthContext = {
-        user: { id: 'user-1', email: 'owner@example.com', role: 'owner' },
-        apiKey: { id: '', prefix: 'ow_', scopes: ['other:scope'] },
+        user: createMockUser(),
+        apiKey: createMockApiKey({ id: '', prefix: 'ow_', scopes: ['other:scope'] }),
         authType: 'apiKey',
         scopes: ['other:scope'],
       };
@@ -339,8 +390,8 @@ describe('Clients Domain & Actions Branch Coverage (Unit)', () => {
 
       // RequireAuthOptions parameter passing
       vi.spyOn(authGuards, 'requireAuth').mockResolvedValueOnce({
-        user: { id: 'user-1', email: 'owner@example.com', role: 'owner' },
-        session: { id: 'sess-1', userId: 'user-1' },
+        user: createMockUser(),
+        session: createMockSession(),
         authType: 'session',
         scopes: ['*'],
       });
@@ -351,15 +402,8 @@ describe('Clients Domain & Actions Branch Coverage (Unit)', () => {
 
   describe('Service branch coverage', () => {
     const ownerAuth: AuthContext = {
-      user: {
-        id: '01912345-6789-7abc-8def-012345678000',
-        email: 'owner@example.com',
-        role: 'owner',
-      },
-      session: {
-        id: '01912345-6789-7abc-8def-012345678001',
-        userId: '01912345-6789-7abc-8def-012345678000',
-      },
+      user: createMockUser(),
+      session: createMockSession(),
       authType: 'session',
       scopes: ['*'],
     };
@@ -503,30 +547,24 @@ describe('Clients Domain & Actions Branch Coverage (Unit)', () => {
       expect(rmNoClientRes.code).toBe('NOT_FOUND');
 
       // removeContact when existingContact is not found on client
-      vi.spyOn(clientRepo, 'getClientById').mockResolvedValueOnce({
-        id: '01912345-6789-7abc-8def-012345678000',
-        kind: 'person',
-        displayName: 'Test',
-        preferredLocale: 'en',
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        lastActivityAt: new Date(),
-        contacts: [
-          {
-            id: 'contact-x',
-            clientId: '01912345-6789-7abc-8def-012345678000',
-            givenName: 'X',
-            familyName: null,
-            email: null,
-            emailNormalized: null,
-            phone: null,
-            isPrimary: true,
-            createdAt: new Date(),
-            updatedAt: new Date(),
-          },
-        ],
-        addresses: [],
-      });
+      vi.spyOn(clientRepo, 'getClientById').mockResolvedValueOnce(
+        createMockClientWithRelations({
+          contacts: [
+            {
+              id: 'contact-x',
+              clientId: '01912345-6789-7abc-8def-012345678000',
+              givenName: 'X',
+              familyName: null,
+              email: null,
+              emailNormalized: null,
+              phone: null,
+              isPrimary: true,
+              createdAt: new Date(),
+              updatedAt: new Date(),
+            },
+          ],
+        }),
+      );
       const rmNoContactRes = await clientService.removeContact(
         { clientId: '01912345-6789-7abc-8def-012345678000', contactId: 'contact-y' },
         ownerAuth,
@@ -534,44 +572,38 @@ describe('Clients Domain & Actions Branch Coverage (Unit)', () => {
       );
       expect(rmNoContactRes.code).toBe('NOT_FOUND');
 
-      // removeContact when deleteContactRecord returns false
-      vi.spyOn(clientRepo, 'getClientById').mockResolvedValueOnce({
-        id: '01912345-6789-7abc-8def-012345678000',
-        kind: 'person',
-        displayName: 'Test',
-        preferredLocale: 'en',
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        lastActivityAt: new Date(),
-        contacts: [
-          {
-            id: 'contact-1',
-            clientId: '01912345-6789-7abc-8def-012345678000',
-            givenName: '1',
-            familyName: null,
-            email: null,
-            emailNormalized: null,
-            phone: null,
-            isPrimary: true,
-            createdAt: new Date(),
-            updatedAt: new Date(),
-          },
-          {
-            id: 'contact-2',
-            clientId: '01912345-6789-7abc-8def-012345678000',
-            givenName: '2',
-            familyName: null,
-            email: null,
-            emailNormalized: null,
-            phone: null,
-            isPrimary: false,
-            createdAt: new Date(),
-            updatedAt: new Date(),
-          },
-        ],
-        addresses: [],
-      });
-      vi.spyOn(clientRepo, 'deleteContactRecord').mockResolvedValueOnce(false);
+      // removeContact when deleteContactRecord returns null
+      vi.spyOn(clientRepo, 'getClientById').mockResolvedValueOnce(
+        createMockClientWithRelations({
+          contacts: [
+            {
+              id: 'contact-1',
+              clientId: '01912345-6789-7abc-8def-012345678000',
+              givenName: '1',
+              familyName: null,
+              email: null,
+              emailNormalized: null,
+              phone: null,
+              isPrimary: true,
+              createdAt: new Date(),
+              updatedAt: new Date(),
+            },
+            {
+              id: 'contact-2',
+              clientId: '01912345-6789-7abc-8def-012345678000',
+              givenName: '2',
+              familyName: null,
+              email: null,
+              emailNormalized: null,
+              phone: null,
+              isPrimary: false,
+              createdAt: new Date(),
+              updatedAt: new Date(),
+            },
+          ],
+        }),
+      );
+      vi.spyOn(clientRepo, 'deleteContactRecord').mockResolvedValueOnce(null);
       const rmDelFailedRes = await clientService.removeContact(
         { clientId: '01912345-6789-7abc-8def-012345678000', contactId: 'contact-1' },
         ownerAuth,
