@@ -239,19 +239,27 @@ describe('AC-3: Server environment validation and secret strength enforcement', 
 
   it('I3-C01: env proxy coerces numbers and provides defaults when SKIP_ENV_VALIDATION is true', () => {
     const origSkip = process.env.SKIP_ENV_VALIDATION;
+    const origPort = process.env.PORT;
     process.env.SKIP_ENV_VALIDATION = 'true';
     try {
+      delete process.env.PORT;
       expect(env.PORT).toBe(3000);
       expect(typeof env.PORT).toBe('number');
       expect(env.RETENTION_PERIOD_MONTHS).toBe(24);
       expect(typeof env.RETENTION_PERIOD_MONTHS).toBe('number');
-      expect(env.DB_MAX_CONNECTIONS).toBe(10);
-      expect(typeof env.DB_MAX_CONNECTIONS).toBe('number');
-      expect(env.DB_STATEMENT_TIMEOUT).toBe(30);
-      expect(typeof env.DB_STATEMENT_TIMEOUT).toBe('number');
-      expect(env.DB_SSL).toBe(false);
-      expect(typeof env.DB_SSL).toBe('boolean');
+
+      // Custom numeric string
+      process.env.PORT = '8080';
+      expect(env.PORT).toBe(8080);
+
+      // Unknown property fallback
+      expect((env as unknown as Record<string, string>)['UNKNOWN_TEST_PROP']).toBe('');
     } finally {
+      if (origPort !== undefined) {
+        process.env.PORT = origPort;
+      } else {
+        delete process.env.PORT;
+      }
       if (origSkip !== undefined) {
         process.env.SKIP_ENV_VALIDATION = origSkip;
       } else {

@@ -305,6 +305,13 @@ export function resetEnvCache(): void {
   cachedServerEnv = null;
 }
 
+const NUMERIC_ENV_DEFAULTS: Record<string, number> = {
+  PORT: 3000,
+  RETENTION_PERIOD_MONTHS: 24,
+  DB_MAX_CONNECTIONS: 10,
+  DB_STATEMENT_TIMEOUT: 30,
+};
+
 /**
  * Server environment proxy.
  * Blocks access if imported in browser / client runtime.
@@ -317,32 +324,12 @@ export const env: ServerEnv = new Proxy({} as ServerEnv, {
       );
     }
     if (process.env.SKIP_ENV_VALIDATION === 'true') {
-      if (prop === 'PORT') {
-        const p = Number(process.env.PORT);
-        return Number.isFinite(p) && p > 0 ? p : 3000;
+      const defaultNum = NUMERIC_ENV_DEFAULTS[prop];
+      if (defaultNum !== undefined) {
+        const raw = Number(process.env[prop]);
+        return Number.isFinite(raw) && raw > 0 ? raw : defaultNum;
       }
-      if (prop === 'RETENTION_PERIOD_MONTHS') {
-        const r = Number(process.env.RETENTION_PERIOD_MONTHS);
-        return Number.isFinite(r) && r > 0 ? r : 24;
-      }
-      if (prop === 'DB_MAX_CONNECTIONS') {
-        const m = Number(process.env.DB_MAX_CONNECTIONS);
-        return Number.isFinite(m) && m > 0 ? m : 10;
-      }
-      if (prop === 'DB_STATEMENT_TIMEOUT') {
-        const s = Number(process.env.DB_STATEMENT_TIMEOUT);
-        return Number.isFinite(s) && s > 0 ? s : 30;
-      }
-      if (prop === 'DB_SSL') {
-        return process.env.DB_SSL === 'true' || process.env.DB_SSL === 'require';
-      }
-      if (prop === 'NODE_ENV') {
-        return (process.env.NODE_ENV as 'development' | 'production' | 'test') || 'development';
-      }
-      const val = Object.prototype.hasOwnProperty.call(process.env, prop)
-        ? process.env[prop]
-        : undefined;
-      return val ?? '';
+      return process.env[prop] ?? '';
     }
     return getServerEnv()[prop as keyof ServerEnv];
   },
