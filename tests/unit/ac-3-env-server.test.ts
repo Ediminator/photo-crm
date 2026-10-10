@@ -253,7 +253,7 @@ describe('AC-3: Server environment validation and secret strength enforcement', 
       expect(env.PORT).toBe(8080);
 
       // Unknown property fallback
-      expect((env as unknown as Record<string, string>)['UNKNOWN_TEST_PROP']).toBe('');
+      expect((env as unknown as { UNKNOWN_TEST_PROP: string }).UNKNOWN_TEST_PROP).toBe('');
     } finally {
       if (origPort !== undefined) {
         process.env.PORT = origPort;
