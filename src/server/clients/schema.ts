@@ -261,7 +261,29 @@ export const getClientInputSchema = z
 export type GetClientInput = z.infer<typeof getClientInputSchema>;
 
 /**
- * listClientsAction input schema.
+ * Escapes PostgreSQL LIKE/ILIKE wildcard metacharacters (%, _, \) in search strings.
+ */
+export function escapeLikeWildcards(term: string): string {
+  return term.replace(/[\\%_]/g, '\\$&');
+}
+
+export const tagNameSchema = singleLineString(50, 1);
+
+export const setClientTagsInputSchema = z
+  .object({
+    clientId: uuidSchema,
+    tagNames: z.array(tagNameSchema),
+  })
+  .strict();
+
+export type SetClientTagsInput = z.infer<typeof setClientTagsInputSchema>;
+
+export const listTagsInputSchema = z.object({}).passthrough().optional();
+
+export const searchQuerySchema = singleLineString(100, 1);
+
+/**
+ * listClientsAction input schema (updated in TASK-0010 with search and tag filters).
  */
 export const listClientsInputSchema = z
   .object({
@@ -273,6 +295,8 @@ export const listClientsInputSchema = z
       .max(100, 'pageSize must not exceed 100.')
       .optional()
       .default(25),
+    q: searchQuerySchema.optional(),
+    tagId: uuidSchema.optional(),
   })
   .strict();
 

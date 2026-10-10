@@ -13,10 +13,12 @@ import {
   removeAddressInputSchema,
   getClientInputSchema,
   listClientsInputSchema,
+  setClientTagsInputSchema,
+  listTagsInputSchema,
 } from './schema';
 import * as clientService from './service';
 import type { AddressType } from '@/server/db/schema/clients';
-import type { ClientWithRelations, ListClientsResult } from './repo';
+import type { ClientWithRelations, ListClientsResult, ClientTagItem, TagSummaryItem } from './repo';
 
 export type ClientActionResult<T> = clientService.ServiceResult<T>;
 
@@ -312,5 +314,68 @@ export async function listClientsAction(
     return handleValidationError(parsed.error);
   }
 
-  return await clientService.getClientList(parsed.data.page, parsed.data.pageSize);
+  return await clientService.getClientList(
+    parsed.data.page,
+    parsed.data.pageSize,
+    parsed.data.q,
+    parsed.data.tagId,
+  );
+}
+
+/**
+ * Replaces tags for a client.
+ * Requires role 'owner' and 'clients:write' scope.
+ */
+export async function setClientTagsAction(
+  rawInput: unknown,
+): Promise<ClientActionResult<{ clientId: string; tags: ClientTagItem[] }>> {
+  let auth;
+  try {
+    auth = await requireAuth();
+    const targetId = extractClientId(rawInput);
+    await authorizeClientWrite('client.tags.changed', targetId, auth);
+  } catch (err) {
+    if (err instanceof UnauthorizedError) {
+      return { success: false, code: 'UNAUTHORIZED', error: 'UNAUTHORIZED' };
+    }
+    if (err instanceof ForbiddenError) {
+      return { success: false, code: 'FORBIDDEN', error: 'FORBIDDEN' };
+    }
+    throw err;
+  }
+
+  const parsed = setClientTagsInputSchema.safeParse(rawInput);
+  if (!parsed.success) {
+    return handleValidationError(parsed.error);
+  }
+
+  return await clientService.setClientTags(parsed.data, auth);
+}
+
+/**
+ * Lists all tags with their client counts.
+ * Requires role 'owner' and 'clients:read' scope.
+ */
+export async function listTagsAction(
+  rawInput?: unknown,
+): Promise<ClientActionResult<TagSummaryItem[]>> {
+  const parsed = listTagsInputSchema.safeParse(rawInput);
+  if (!parsed.success) {
+    return handleValidationError(parsed.error);
+  }
+
+  try {
+    const auth = await requireAuth();
+    await authorizeClientRead(auth);
+  } catch (err) {
+    if (err instanceof UnauthorizedError) {
+      return { success: false, code: 'UNAUTHORIZED', error: 'UNAUTHORIZED' };
+    }
+    if (err instanceof ForbiddenError) {
+      return { success: false, code: 'FORBIDDEN', error: 'FORBIDDEN' };
+    }
+    throw err;
+  }
+
+  return await clientService.listTags();
 }

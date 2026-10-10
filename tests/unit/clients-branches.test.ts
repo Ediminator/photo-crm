@@ -97,6 +97,7 @@ function createMockClientWithRelations(
     },
     contacts: [],
     addresses: [],
+    tags: [],
     ...overrides,
   };
 }
