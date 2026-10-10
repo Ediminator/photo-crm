@@ -265,7 +265,7 @@ describe('AC-11: API key authentication, scope enforcement, and revocation', () 
     expect(adminContext.user.id).toBe(owner.id);
   });
 
-  it('AC-11: hashBearerToken computes deterministic SHA-256 hash of high-entropy token', () => {
+  it('AC-11: hashBearerToken computes deterministic scrypt hash of high-entropy token', () => {
     const raw = 'pcrm_live_0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
     const hash = hashBearerToken(raw);
     expect(hash).toBeDefined();

@@ -30,14 +30,14 @@ export interface VerifyApiKeyResult {
   error?: 'not_found' | 'expired' | 'revoked' | 'invalid_format';
 }
 
+const TOKEN_KDF_SALT = 'photo_crm_api_key_v1';
+
 /**
- * Computes the SHA-256 hash of a high-entropy bearer token for database storage and indexing.
- * Bearer tokens contain 256 bits of CSPRNG entropy; fast cryptographic hashing (SHA-256)
- * is standard practice to allow indexed lookups while protecting tokens at rest.
+ * Computes the deterministic KDF hash of a high-entropy bearer token for database storage and indexing.
+ * Uses Node.js crypto.scryptSync with 32-byte output, fulfilling ASVS and CodeQL CWE-916 requirements.
  */
 export function hashBearerToken(tokenValue: string): string {
-  // codeql[js/insufficient-password-hash] High-entropy bearer token hashed with SHA-256 for fast indexed database lookup, not a human password.
-  return crypto.createHash('sha256').update(tokenValue).digest('hex');
+  return crypto.scryptSync(tokenValue, TOKEN_KDF_SALT, 32).toString('hex');
 }
 export const hashApiKeyToken = hashBearerToken; // backward compatibility
 
