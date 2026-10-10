@@ -170,4 +170,11 @@ describe('Retention policy utility and definition branches', () => {
     const finalPolicies = getPolicies();
     expect(finalPolicies.some((p) => p.id === 'custom-test-policy')).toBe(false);
   });
+
+  it('I3-C02: createDefaultPolicies falls back to 24 months when RETENTION_PERIOD_MONTHS is invalid or empty', () => {
+    const policies = createDefaultPolicies();
+    const auditPolicy = policies.find((p) => p.id === 'audit-events-retention');
+    expect(auditPolicy).toBeDefined();
+    expect(auditPolicy?.after?.months).toBe(24);
+  });
 });

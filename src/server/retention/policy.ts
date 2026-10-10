@@ -94,7 +94,10 @@ export function defineRetentionPolicy<T extends RetentionEntity = RetentionEntit
 export function createDefaultPolicies(): RetentionPolicy[] {
   let auditMonths = 24;
   try {
-    auditMonths = env.RETENTION_PERIOD_MONTHS;
+    const raw = Number(env.RETENTION_PERIOD_MONTHS);
+    if (Number.isFinite(raw) && raw > 0) {
+      auditMonths = raw;
+    }
   } catch {
     auditMonths = 24;
   }

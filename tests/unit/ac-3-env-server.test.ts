@@ -214,16 +214,50 @@ describe('AC-3: Server environment validation and secret strength enforcement', 
   });
 
   it('AC-3: getServerEnv caches validated result and env proxy accesses properties on server', () => {
-    Object.assign(process.env, validServerEnvInput);
-    resetEnvCache();
+    const origSkip = process.env.SKIP_ENV_VALIDATION;
+    delete process.env.SKIP_ENV_VALIDATION;
+    try {
+      Object.assign(process.env, validServerEnvInput);
+      resetEnvCache();
 
-    // env proxy works on server
-    expect(env.PORT).toBe(3000);
-    expect(env.AUTH_URL).toBe('http://localhost:3000');
+      // env proxy works on server
+      expect(env.PORT).toBe(3000);
+      expect(env.AUTH_URL).toBe('http://localhost:3000');
 
-    // Calling validateServerEnv with no arguments uses process.env
-    const validated = validateServerEnv();
-    expect(validated.NODE_ENV).toBe('test');
+      // Calling validateServerEnv with no arguments uses process.env
+      const validated = validateServerEnv();
+      expect(validated.NODE_ENV).toBe('test');
+    } finally {
+      if (origSkip !== undefined) {
+        process.env.SKIP_ENV_VALIDATION = origSkip;
+      } else {
+        delete process.env.SKIP_ENV_VALIDATION;
+      }
+      resetEnvCache();
+    }
+  });
+
+  it('I3-C01: env proxy coerces numbers and provides defaults when SKIP_ENV_VALIDATION is true', () => {
+    const origSkip = process.env.SKIP_ENV_VALIDATION;
+    process.env.SKIP_ENV_VALIDATION = 'true';
+    try {
+      expect(env.PORT).toBe(3000);
+      expect(typeof env.PORT).toBe('number');
+      expect(env.RETENTION_PERIOD_MONTHS).toBe(24);
+      expect(typeof env.RETENTION_PERIOD_MONTHS).toBe('number');
+      expect(env.DB_MAX_CONNECTIONS).toBe(10);
+      expect(typeof env.DB_MAX_CONNECTIONS).toBe('number');
+      expect(env.DB_STATEMENT_TIMEOUT).toBe(30);
+      expect(typeof env.DB_STATEMENT_TIMEOUT).toBe('number');
+      expect(env.DB_SSL).toBe(false);
+      expect(typeof env.DB_SSL).toBe('boolean');
+    } finally {
+      if (origSkip !== undefined) {
+        process.env.SKIP_ENV_VALIDATION = origSkip;
+      } else {
+        delete process.env.SKIP_ENV_VALIDATION;
+      }
+    }
   });
 
   it('AC-3: validates database configuration options including SSL and timeouts', () => {
