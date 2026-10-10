@@ -17,10 +17,10 @@ import {
 import { studioSettings } from '@/server/db/schema/studio-settings';
 import { getStudioSettings } from '@/server/settings/repo';
 import { requireOwner } from './guards';
+import { assertFreshReauthentication } from './reauth';
 import {
   rotateSession,
   revokeSession,
-  verifySession,
   getSessionCookieAttributes,
   SESSION_COOKIE_NAME,
   SECURE_SESSION_COOKIE_NAME,
@@ -159,44 +159,6 @@ async function setSessionCookie(token: string): Promise<void> {
     path: attrs.path,
     maxAge: attrs.maxAge,
   });
-}
-
-/**
- * Checks if the current session was authenticated or re-authenticated within the last 5 minutes.
- * Required for sensitive MFA operations (AC-6).
- */
-export async function assertFreshReauthentication(
-  userId: string,
-  client: DbClient = db,
-): Promise<void> {
-  let sessionToken: string | undefined;
-  try {
-    const cookieStore = await cookies();
-    sessionToken =
-      cookieStore.get(SECURE_SESSION_COOKIE_NAME)?.value ??
-      cookieStore.get(SESSION_COOKIE_NAME)?.value;
-  } catch {
-    sessionToken = undefined;
-  }
-
-  if (!sessionToken) {
-    throw new Error('REAUTH_REQUIRED: No active session cookie found.');
-  }
-
-  const verified = await verifySession(sessionToken, client);
-  if (verified?.user.id !== userId) {
-    throw new Error('REAUTH_REQUIRED: Invalid session.');
-  }
-
-  const fiveMinutesMs = 5 * 60 * 1000;
-  const lastReauth = verified.session.lastReauthenticatedAt;
-  const ageMs = Date.now() - new Date(lastReauth).getTime();
-
-  if (ageMs > fiveMinutesMs) {
-    const err = new Error('REAUTH_REQUIRED: Re-authentication required for sensitive operation.');
-    err.name = 'ReauthenticationRequiredError';
-    throw err;
-  }
 }
 
 /**
