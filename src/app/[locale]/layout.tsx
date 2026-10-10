@@ -1,3 +1,4 @@
+import { headers } from 'next/headers';
 import type { ReactNode } from 'react';
 import { notFound } from 'next/navigation';
 import { hasLocale, NextIntlClientProvider } from 'next-intl';
@@ -27,6 +28,14 @@ export default async function LocaleLayout({ children, params }: LocaleLayoutPro
 
   const messages = locale === 'de' ? deMessages : enMessages;
 
+  let nonce: string | undefined;
+  try {
+    const headersList = await headers();
+    nonce = headersList.get('x-nonce') ?? undefined;
+  } catch {
+    nonce = undefined;
+  }
+
   return (
     <html
       lang={locale}
@@ -45,6 +54,7 @@ export default async function LocaleLayout({ children, params }: LocaleLayoutPro
             defaultTheme="system"
             enableSystem
             disableTransitionOnChange
+            nonce={nonce}
           >
             <AppShell>{children}</AppShell>
           </ThemeProvider>

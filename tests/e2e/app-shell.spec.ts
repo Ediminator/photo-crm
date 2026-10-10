@@ -1,7 +1,17 @@
 import { test, expect } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
 
+const TEST_AUTH_COOKIE = {
+  name: 'photo_crm_session',
+  value: 'e2e-session-valid-token',
+  url: 'http://localhost:3000',
+};
+
 test.describe('App Shell, Theming, and Internationalization E2E', () => {
+  test.beforeEach(async ({ context }) => {
+    await context.addCookies([TEST_AUTH_COOKIE]);
+  });
+
   test('AC-1: redirects / to /de on Accept-Language: de-DE,de;q=0.9 and sets html lang=de', async ({
     browser,
   }) => {
@@ -11,6 +21,7 @@ test.describe('App Shell, Theming, and Internationalization E2E', () => {
         'Accept-Language': 'de-DE,de;q=0.9',
       },
     });
+    await context.addCookies([TEST_AUTH_COOKIE]);
     const page = await context.newPage();
     await page.goto('/');
 
@@ -29,6 +40,7 @@ test.describe('App Shell, Theming, and Internationalization E2E', () => {
         'Accept-Language': 'en-US,en;q=0.9',
       },
     });
+    await context.addCookies([TEST_AUTH_COOKIE]);
     const page = await context.newPage();
     await page.goto('/');
 
@@ -45,6 +57,7 @@ test.describe('App Shell, Theming, and Internationalization E2E', () => {
         'Accept-Language': 'fr-FR,fr;q=0.9',
       },
     });
+    await context.addCookies([TEST_AUTH_COOKIE]);
     const page = await context.newPage();
     await page.goto('/');
 
@@ -151,6 +164,7 @@ test.describe('App Shell, Theming, and Internationalization E2E', () => {
     const context = await browser.newContext({
       colorScheme: 'dark',
     });
+    await context.addCookies([TEST_AUTH_COOKIE]);
     const page = await context.newPage();
 
     await page.goto('/en');
